@@ -1,10 +1,9 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['TMC']
+build = 'build.rs'
+description = 'dnft node'
 edition = '2018'
-homepage = 'https://substrate.dev'
-license = 'Unlicense'
-name = 'node-template-runtime'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+name = 'dnft-runtime'
 version = '2.0.0'
 
 [package.metadata.docs.rs]
@@ -26,6 +25,8 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 # local dependencies
 pallet-template = { path = '../pallets/template', default-features = false, version = '2.0.0' }
+pallet-nft = { path = '../pallets/nft', default-features = false }
+
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
@@ -93,4 +94,5 @@ std = [
     'sp-std/std',
     'sp-transaction-pool/std',
     'sp-version/std',
+    'pallet-nft/std',
 ]
