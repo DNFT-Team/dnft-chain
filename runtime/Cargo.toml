@@ -27,7 +27,6 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 pallet-template = { path = '../pallets/template', default-features = false, version = '2.0.0' }
 pallet-nft = { path = '../pallets/nft', default-features = false }
 
-
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
 frame-executive = { default-features = false, version = '2.0.0' }
