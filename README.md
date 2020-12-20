@@ -1,6 +1,26 @@
-# Substrate Node Template
+# DNFT
 
-A new FRAME-based Substrate node, ready for hacking :rocket:
+###### 面向大数据+真实场景下的新一代跨链NFT资产协议， Ready for hacking :rocket:
+
+# 1.介绍
+
+DNFT 是基于 Substrate 的跨链去中心化NFT资产网络，致力于构建新一代NFT协议，特别是面向大数据和实用型NFT资产.
+
+融合了NFT资产创建, NFT资产去中心化交易/竞拍, NFT资产维护税费，NFT回收机制，以及DNFT治理等功能.
+
+通过链上治理,预言机,存储机制管理,回收机制管理,以及系统协议管理开发.来维护DNFT DAO机制.
+
+# 2.架构设计
+
+![](./img/architecture.png)
+
+# 3.MVP
+
+for **2020杭州 SUBSTRATE HACKATHON**
+
+![](./img/mvp.png)
+
+# 4.Chain Build&Use
 
 ## Getting Started
 
