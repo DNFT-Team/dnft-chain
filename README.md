@@ -1,16 +1,13 @@
 # DNFT
 
-###### 面向大数据+真实场景下的新一代跨链NFT资产协议， Ready for hacking :rocket:
+###### New generation cross chain NFT asset protocol for big data + real scenarios， Ready for hacking :rocket:
 
-# 1.介绍
+# 1.Introduce
+DNFT Protocol is a cross chain decentralized NFT asset network based on substance, which is committed to building a new generation of NFT protocol, especially for big data and practical NFT assets
+It integrates the functions of NFT asset creation, NFT asset decentralized transaction / auction, NFT asset maintenance tax, NFT recovery mechanism, and dnft governance
+Through the chain governance, Oracle, storage mechanism management, recycling mechanism management, and system protocol management development. To maintain the DNFT Dao mechanism
 
-DNFT 是基于 Substrate 的跨链去中心化NFT资产网络，致力于构建新一代NFT协议，特别是面向大数据和实用型NFT资产.
-
-融合了NFT资产创建, NFT资产去中心化交易/竞拍, NFT资产维护税费，NFT回收机制，以及DNFT治理等功能.
-
-通过链上治理,预言机,存储机制管理,回收机制管理,以及系统协议管理开发.来维护DNFT DAO机制.
-
-# 2.架构设计
+# 2.Architecture
 
 ![](./img/architecture.png)
 
