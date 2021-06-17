@@ -289,12 +289,10 @@ decl_module! {
     //                     }
     //                     nids.remove(i);
     //                 }
-
     //                 <NFTInTax<T>>::insert(&acc, nids);
     //             }
     //             return 100_000
     //         }
-
     //         1000
     //     }
     //       fn on_finalize(block_number: T::BlockNumber) {
@@ -398,11 +396,14 @@ impl<T: Config> Module<T> {
 
     fn _buy_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
         let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        let from = nft.owner.clone();
         ensure!(nft.owner != who.clone(), Error::<T>::NoPermission);
         ensure!(nft.status == NFTStatus::Offered, Error::<T>::NFTNotForBuy);
         T::Currency::transfer(&who, &nft.owner, nft.price, ExistenceRequirement::KeepAlive)?;
         nft.status = NFTStatus::Normal;
         nft.owner = who.clone();
+        Self::_remove_nft_from_owned_nfts(from.clone(), nft_id.clone())?;
+        Self::_add_nft_to_owned_nfts(who.clone(), nft_id.clone())?;
         <NFTs<T>>::insert(nft_id.clone(), &nft);
 
         Ok(())

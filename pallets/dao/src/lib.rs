@@ -17,51 +17,7 @@ use sp_std::prelude::*;
 use utilities::{
 	Proposal
 };
-/// Class info
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
-pub struct ClassInfo<AccountId> {
-    /// Class metadata
-    pub metadata: Vec<u8>,
-    /// Total issuance for the class
-    pub total_issuance: u64,
-    /// Class owner
-    pub owner: AccountId,
-    /// Class Properties
-    pub data: Vec<u8>,
-}
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-pub enum NFTStatus {
-    Normal = 0,
-    Offered,
-    Collected,
-    Burned,
-}
-
-/// Token info
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
-pub struct TokenInfo<AccountId, Balance> {
-    /// Token metadata
-    pub metadata: Vec<u8>,
-    /// Token owner
-    pub owner: AccountId,
-    /// Token Properties
-    pub data: Vec<u8>,
-    /// Balance Properties
-    pub price: Balance,
-    /// Balance Properties
-    pub status: NFTStatus,
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct NFTId {
-    pub id: [u8; 32],
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct ClassId {
-    pub id: [u8; 32],
-}
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct ProposalId {
     pub id: [u8; 32],
@@ -89,16 +45,6 @@ decl_event!(
 decl_error! {
     pub enum Error for Module<T: Config> {
         NoPermission,
-        NFTNotExist,
-        ClassNotExist,
-        ClassExists,
-        ExceedTotalIssuance,
-        NotNFTOwner,
-        NFTBurned,
-        NFTAlreadyOwned,
-        NFTNotOwned,
-        ClassAlreadyOwned,
-        NFTNotForBuy,
     }
 }
 type BalanceOf<T> =
@@ -147,39 +93,6 @@ decl_module! {
 
             Self::deposit_event(RawEvent::SetDAOTax(who));
         }
-
-    
-    //     fn on_initialize(block_number: T::BlockNumber) -> Weight {
-    //         let number: T::BlockNumber = <<T as frame_system::Trait>::BlockNumber as From<_>>::from(100);
-
-    //         if block_number % number == <<T as frame_system::Config>::BlockNumber as From<_>>::from(0){
-    //             for acc in Self::nft_holders() {
-    //                 let mut nids = Self::owned_nfts(acc.clone());
-    //                 for i in 0..nids.len() {
-    //                     if let Some(mut nft) = Self::nfts(nids[i].clone()){
-    //                         nft.status = NFTStatus::Collected;
-    //                         <NFTs<T>>::insert(nids[i].clone(), &nft);
-    //                     }
-    //                     nids.remove(i);
-    //                 }
-
-    //                 <NFTInTax<T>>::insert(&acc, nids);
-    //             }
-    //             return 100_000
-    //         }
-
-    //         1000
-    //     }
-    //       fn on_finalize(block_number: T::BlockNumber) {
-    //         let number: T::BlockNumber = <<T as frame_system::Trait>::BlockNumber as From<_>>::from(110);
-
-    //         if block_number % number == <<T as frame_system::Trait>::BlockNumber as From<_>>::from(0){
-    //             for acc in Self::nft_holders() {
-    //                 <NFTInTax<T>>::insert(&acc, Self::owned_nfts(acc.clone()));
-    //             }
-    //         }
-    //       }
-
 
         #[weight = 10_000]
         fn create_proposal(
