@@ -114,7 +114,7 @@ decl_storage! {
         pub DAOTax get(fn dao_tax): BalanceOf<T>;
 
         // Proposal
-        pub Proposals get(fn proposals): map hasher(twox_64_concat) T::ProposalId => Option<Proposal<T::AccountId>>;
+        pub Proposals get(fn proposals): map hasher(blake2_128_concat) T::ProposalId => Option<Proposal<T::AccountId>>;
         pub ProposalsCount get(fn proposals_count): T::ProposalId;
         pub ProposalsIndex get(fn proposals_index): T::ProposalId;
     }
@@ -203,7 +203,7 @@ decl_module! {
                 deadline: deadline.clone(),
             };
 
-            <Proposals<T>>::insert(&new_proposal_id, &new_proposal);
+            <Proposals<T>>::insert(new_proposal_id.clone(), new_proposal.clone());
             <ProposalsCount<T>>::put(new_proposal_id.clone());
             <ProposalsIndex<T>>::mutate(|index| *index += T::ProposalId::one());
             Self::deposit_event(RawEvent::NewProposal(

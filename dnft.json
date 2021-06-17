@@ -1,5 +1,6 @@
 {
   "NFTId": "([u8; 32])",
+  "NFTSId": "([u8; 32])",
   "ClassId": "([u8; 32])",
   "ClassInfo":{
     "metadata": "Vec<u8>",
@@ -21,5 +22,212 @@
     "data":"Vec<u8>",
     "price":"Balance",
     "status":"NFTStatus"
-  }
+  },
+  "Did": "([u8; 32])",
+  "PayId": "u32",
+  "OrderType": {
+    "_enum": [
+      "Buy",
+      "Sell"
+    ]
+  },
+  "TradeMethod": {
+    "_enum": [
+      "AMMOrder",
+      "Auction",
+      "OrderBook",
+      "P2POrder"
+    ]
+  },
+  "OrderStatus": {
+    "_enum": [
+      "Created",
+      "PartialFilled",
+      "Filled",
+      "Canceled"
+    ]
+  },
+  "Token": {
+    "tid": "Did",
+    "owner": "AccountId",
+    "symbol": "Vec<u8>",
+    "total_supply": "u64"
+  },
+  "TradePair": {
+    "base": "Did",
+    "quote": "Did",
+    "method": "TradeMethod",
+    "matched_price": "u64",
+    "one_day_trade_volume": "u64",
+    "one_day_highest_price": "u64",
+    "one_day_lowest_price": "u64"
+  },
+  "LiquidityPool": {
+    "tpid": "Did",
+    "token0": "Did",
+    "token1": "Did",
+    "token0_amount": "u64",
+    "token1_amount": "u64",
+    "k_last": "u64",
+    "swap_price_last": "u64",
+    "swap_price_highest": "u64",
+    "swap_price_lowest": "u64",
+    "token0_trade_volume_total": "u64",
+    "token1_trade_volume_total": "u64"
+  
+  },
+  "AmmOrder": {
+    "lpid": "Did",
+    "owner": "AccountId",
+    "token_have": "Did",
+    "token_have_amount": "u64",
+    "token_want": "Did",
+    "token_want_amount": "u64",
+    "token_swap_price": "u64"
+  },
+  "P2POrderMaker": {
+    "tpid": "Did",
+    "maker": "AccountId",
+    "order_type": "OrderType",
+    "volume": "u64",
+    "price": "u64",
+    "status": "OrderStatus",
+    "time": "Moment",
+    "left_volume": "u64",
+    "locked_volume": "u64",
+    "taked_volume": "u64"
+  },
+  "GoodsLine": {
+    "tpid": "Did",
+    "buyer": "AccountId",
+    "seller": "AccountId",
+    "producer": "AccountId",
+    "volume": "u64"
+  },
+  "PayLine": {
+    "tpid": "Did",
+    "sender": "AccountId",
+    "receiver": "AccountId",
+    "total_price": "u64",
+    "paid_price": "u64"
+  },
+  "IOULine": {
+    "goods_line_id": "Did",
+    "buyer_pay_line_id": "Did",
+    "seller_pay_line_id": "Did"
+  },
+  "IOU": {
+    "i": "AccountId",
+    "u": "AccountId",
+    "iou_lines": "Vec<IOULine>"
+  },
+  "P2POrderTaker": {
+    "pomid": "P2POrderMakerId",
+    "taker": "AccountId",
+    "volume": "u64",
+    "iou": "Option<IOU>",
+    "is_paid": "bool",
+    "is_valid": "bool",
+    "time": "Moment"
+  },
+  "ValueStruct": {
+        "integer": "u32",
+        "boolean": "bool"
+    },
+  "BufferIndex": "u8",
+  "OrderPara": {
+    "time": "u32",
+    "volume": "u32",
+    "oindex": "u32"
+    },
+    "OrderType1": {
+    "_enum": [
+      "BidLimit",
+      "BidMarket",
+      "AskLimit",
+      "AskMarket"
+    ]
+  },
+  "Order": {
+    "id": "Hash",
+    "trading_pair": "Hash",
+    "trader": "AccountId",
+    "price": "FixedU128",
+    "quantity": "FixedU128",
+    "order_type": "OrderType1"
+  },
+  "MarketData": {
+    "low": "FixedU128",
+    "high": "FixedU128",
+    "volume": "FixedU128"
+  },
+  "LinkedPriceLevel": {
+    "next": "Option<FixedU128>",
+    "prev": "Option<FixedU128>",
+    "orders": "Vec<Order>"
+  },
+  "Orderbook": {
+    "trading_pair": "Hash",
+    "base_asset_id": "u32",
+    "quote_asset_id": "u32",
+    "best_bid_price": "FixedU128",
+    "best_ask_price": "FixedU128"
+  },
+    "CollectionId":"([u8; 32])",
+    "CollectionStatus":{
+        "_enum": ["Normal", "Destroyed", "Decoupled"]
+    },
+    "LifeStage":{
+        "name":"Vec<u8>",
+        "period": "BlockNumber"
+    },
+    "NFTS":{
+        "name": "Vec<u8>",
+        "symbol": "Vec<u8>",
+        "info": "Vec<u8>",
+        "supply": "u64",
+        "stage": "Vec<LifeStage>",
+        "issuer": "AccountId"
+    },
+    "NFT":{
+        "nfts_id": "NFTSId",
+        "nfts_index": "u64",
+        "info": "Vec<u8>",
+        "owner": "AccountId",
+        "price": "Balance",
+        "status": "NFTStatus",
+        "approvers": "Vec<AccountId>"
+    },
+    "NFTSource":{
+        "nfts_id": "NFTSId",
+        "amount": "u64",
+        "nfts_indexs": "Vec<u64>"
+    },
+    "Collection":{
+        "name": "Vec<u8>",
+        "symbol": "Vec<u8>",
+        "info": "Vec<u8>",
+        "owner": "AccountId",
+        "price": "Balance",
+        "source":"Vec<NFTSource>",
+        "status": "CollectionStatus",
+        "approvers": "Vec<AccountId>"
+    },
+    "ProposalId":"u64",
+    "Proposal":{
+      "owner": "AccountId",
+      "name": "Vec<u8>",
+      "content": "Vec<u8>",
+      "min_to_succeed": "u64",
+      "vote_yes": "u64",
+      "vote_no":"u64",
+      "deadline": "u64"
+  },
+  "Auction":{
+    "owner": "AccountId",
+    "name": "Vec<u8>",
+    "start": "u64",
+    "end": "u64"
+}
+
 }

@@ -398,7 +398,7 @@ impl<T: Config> Module<T> {
 
     fn _buy_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
         let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-        ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
+        ensure!(nft.owner != who.clone(), Error::<T>::NoPermission);
         ensure!(nft.status == NFTStatus::Offered, Error::<T>::NFTNotForBuy);
         T::Currency::transfer(&who, &nft.owner, nft.price, ExistenceRequirement::KeepAlive)?;
         nft.status = NFTStatus::Normal;
