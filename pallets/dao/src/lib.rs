@@ -64,7 +64,7 @@ pub struct ClassId {
 }
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct ProposalId {
-    pub id: [u8; 16],
+    pub id: [u8; 32],
 }
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
@@ -194,9 +194,9 @@ decl_module! {
             let nonce = <PNonce>::get();
             <PNonce>::mutate(|n| *n += 1u64);
             let random_seed = <randomness::Module<T>>::random_seed();
-            let encoded = (random_seed, creator.clone(), nonce).encode();
+            let encoded = (random_seed, from.clone(), nonce).encode();
             let id = blake2_256(&encoded);
-            let new_class_id = ProposalId { id };
+            let new_proposal_id = ProposalId { id };
             let new_proposal = Proposal {
                 owner: from.clone(),
                 name: name.clone(),
@@ -208,8 +208,8 @@ decl_module! {
             };
 
             <Proposals<T>>::insert(new_proposal_id.clone(), new_proposal.clone());
-            <ProposalsCount<T>>::put(nonce.clone() + 1);
-            <ProposalsIndex<T>>::insert(nonce.clone(), new_proposal_id.clone());
+            <ProposalsCount>::put(nonce.clone() + 1);
+            <ProposalsIndex>::insert(nonce.clone(), new_proposal_id.clone());
             Self::deposit_event(RawEvent::NewProposal(
                 from,
             ));
