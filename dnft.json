@@ -213,7 +213,7 @@
         "status": "CollectionStatus",
         "approvers": "Vec<AccountId>"
     },
-    "ProposalId":"u64",
+    "ProposalId":"([u8; 16])",
     "Proposal":{
       "owner": "AccountId",
       "name": "Vec<u8>",

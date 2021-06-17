@@ -62,16 +62,13 @@ pub struct NFTId {
 pub struct ClassId {
     pub id: [u8; 32],
 }
-
+#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct ProposalId {
+    pub id: [u8; 16],
+}
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     type Currency: Currency<Self::AccountId>;
-    type ProposalId: Parameter
-        + Member
-        + AtLeast32Bit
-        + Default
-        + Copy
-        + MaybeSerializeDeserialize;
     
 }
 
@@ -114,9 +111,13 @@ decl_storage! {
         pub DAOTax get(fn dao_tax): BalanceOf<T>;
 
         // Proposal
-        pub Proposals get(fn proposals): map hasher(blake2_128_concat) T::ProposalId => Option<Proposal<T::AccountId>>;
-        pub ProposalsCount get(fn proposals_count): T::ProposalId;
-        pub ProposalsIndex get(fn proposals_index): T::ProposalId;
+        pub Proposals get(fn proposals): map hasher(blake2_128_concat) ProposalId => Option<Proposal<T::AccountId>>;
+        pub ProposalsCount get(fn proposals_count): u64;
+        pub ProposalsIndex get(fn proposals_index): map hasher(blake2_128_concat) u64 => ProposalId;
+        
+        pub MemberProposals get(fn member_proposals):
+		double_map hasher(blake2_128_concat) ProposalId, hasher(blake2_128_concat) T::AccountId => bool;
+        pub PNonce get(fn pnonce): u64;
     }
 }
 
@@ -190,9 +191,12 @@ decl_module! {
         ) {
             let from = ensure_signed(origin)?;
 
-            let new_proposal_id =
-            Self::proposals_index() + T::ProposalId::one();
-
+            let nonce = <PNonce>::get();
+            <PNonce>::mutate(|n| *n += 1u64);
+            let random_seed = <randomness::Module<T>>::random_seed();
+            let encoded = (random_seed, creator.clone(), nonce).encode();
+            let id = blake2_256(&encoded);
+            let new_class_id = ProposalId { id };
             let new_proposal = Proposal {
                 owner: from.clone(),
                 name: name.clone(),
@@ -204,8 +208,8 @@ decl_module! {
             };
 
             <Proposals<T>>::insert(new_proposal_id.clone(), new_proposal.clone());
-            <ProposalsCount<T>>::put(new_proposal_id.clone());
-            <ProposalsIndex<T>>::mutate(|index| *index += T::ProposalId::one());
+            <ProposalsCount<T>>::put(nonce.clone() + 1);
+            <ProposalsIndex<T>>::insert(nonce.clone(), new_proposal_id.clone());
             Self::deposit_event(RawEvent::NewProposal(
                 from,
             ));
@@ -214,10 +218,11 @@ decl_module! {
         #[weight = 10_000 ]
         fn vote(
             origin,
-            pid: T::ProposalId,
+            pid: ProposalId,
             vote: bool,
         ) {
             let voter = ensure_signed(origin)?;
+            ensure!(Self::member_proposals(pid.clone(),voter.clone())==false, Error::<T>::NoPermission);
             if let Some(mut proposal) = Self::proposals(pid.clone()) {
                 if vote{
                     proposal.vote_yes +=1;
@@ -226,7 +231,7 @@ decl_module! {
                 }
                 <Proposals<T>>::insert(&pid, &proposal);
             }
-            
+            <MemberProposals<T>>::insert(pid.clone(), voter.clone(), true);
             Self::deposit_event(RawEvent::VoteProposal(
                 voter,
             ));

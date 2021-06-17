@@ -287,7 +287,6 @@ impl pallet_common::Config for Runtime {
 impl pallet_dao::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type ProposalId = u32;
 
 }
 impl pallet_nft721::Config for Runtime {
