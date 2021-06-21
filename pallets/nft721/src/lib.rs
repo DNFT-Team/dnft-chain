@@ -11,52 +11,10 @@ use pallet_randomness_collective_flip as randomness;
 use sp_io::hashing::blake2_256;
 use sp_runtime::{DispatchResult, RuntimeDebug};
 use sp_std::prelude::*;
+use utilities::{
+	ClassInfo, NFTInfo, NFTStatus, NFTId, ClassId
+};
 
-/// Class info
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
-pub struct ClassInfo<AccountId> {
-    /// Class metadata
-    pub metadata: Vec<u8>,
-    /// Total issuance for the class
-    pub total_issuance: u64,
-    /// Class owner
-    pub owner: AccountId,
-    /// Class Properties
-    pub data: Vec<u8>,
-}
-
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-pub enum NFTStatus {
-    Normal = 0,
-    Offered,
-    Collected,
-    Burned,
-}
-
-/// Token info
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
-pub struct TokenInfo<AccountId, Balance> {
-    /// Token metadata
-    pub metadata: Vec<u8>,
-    /// Token owner
-    pub owner: AccountId,
-    /// Token Properties
-    pub data: Vec<u8>,
-    /// Balance Properties
-    pub price: Balance,
-    /// Balance Properties
-    pub status: NFTStatus,
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct NFTId {
-    pub id: [u8; 32],
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct ClassId {
-    pub id: [u8; 32],
-}
 
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
@@ -117,19 +75,11 @@ decl_storage! {
 
 
         // NFT
-        pub NFTs get(fn nfts): map hasher(twox_64_concat) NFTId => Option<TokenInfo<T::AccountId, BalanceOf<T>> >;
+        pub NFTs get(fn nfts): map hasher(twox_64_concat) NFTId => Option<NFTInfo<T::AccountId, BalanceOf<T>> >;
         pub NFTsCount get(fn nfts_count): u64;
         pub NFTsIndex get(fn nfts_index): map hasher(blake2_128_concat) u64 => NFTId;
         pub OwnedNFTs get(fn owned_nfts): map hasher(blake2_128_concat) T::AccountId => Vec<NFTId>;
         pub NFTHolders get(fn nft_holders):  Vec<T::AccountId>;
-
-
-        // Tax
-        pub NFTInTax get(fn nft_in_tax): map hasher(blake2_128_concat) T::AccountId => Vec<NFTId>;
-
-        // DNFTDAO
-        pub DAOAcc get(fn dao_acc): T::AccountId;
-        pub DAOTax get(fn dao_tax): BalanceOf<T>;
 
         // CNonce
         pub CNonce get(fn cnonce): u64;
@@ -145,37 +95,16 @@ decl_module! {
         fn deposit_event() = default;
 
         #[weight = 10_000 ]
-        pub fn set_dao_acc(
-            origin,
-        ) {
-            let who = ensure_signed(origin)?;
-
-            <DAOAcc<T>>::put(&who);
-
-            Self::deposit_event(RawEvent::SetDAOAcc(who));
-        }
-        #[weight = 10_000 ]
-        pub fn set_dao_tax(
-            origin,
-            price: BalanceOf<T>,
-        ) {
-            let who = ensure_signed(origin)?;
-
-            <DAOTax<T>>::put(&price);
-
-            Self::deposit_event(RawEvent::SetDAOTax(who));
-        }
-
-        #[weight = 10_000 ]
         pub fn create_class(
             origin,
+            name: Vec<u8>,
+            info: Vec<u8>,
             metadata: Vec<u8>,
-            total_issuance: u64,
-            data: Vec<u8>,
+            total_supply: u64,
         ) {
             let who = ensure_signed(origin)?;
 
-            Self::_create_class(metadata, total_issuance, who.clone(), data)?;
+            Self::_create_class(name, info, metadata, total_supply, who.clone())?;
 
             Self::deposit_event(RawEvent::CreateClass(who));
         }
@@ -310,21 +239,23 @@ decl_module! {
 
 impl<T: Config> Module<T> {
     fn _create_class(
+        name: Vec<u8>,
+        info: Vec<u8>,
         metadata: Vec<u8>,
-        total_issuance: u64,
-        creator: T::AccountId,
-        data: Vec<u8>,
+        total_supply: u64,
+        issuer: T::AccountId,
     ) -> DispatchResult {
         let nonce = Self::get_cnonce();
         let random_seed = <randomness::Module<T>>::random_seed();
-        let encoded = (random_seed, creator.clone(), nonce).encode();
+        let encoded = (random_seed, issuer.clone(), nonce).encode();
         let id = blake2_256(&encoded);
         let new_class_id = ClassId { id };
         let new_class = ClassInfo {
+            name: name.clone(),
+            info: info.clone(),
             metadata: metadata.clone(),
-            total_issuance: total_issuance.clone(),
-            owner: creator.clone(),
-            data: data.clone(),
+            total_supply: total_supply.clone(),
+            issuer: issuer.clone(),
         };
 
         <Class<T>>::insert(new_class_id.clone(), &new_class);
@@ -336,9 +267,11 @@ impl<T: Config> Module<T> {
     }
     fn _mint_nft(
         class_id: ClassId,
+        index: u64,
         miner: T::AccountId,
+        name: Vec<u8>,
+        info: Vec<u8>,
         metadata: Vec<u8>,
-        data: Vec<u8>,
         price: BalanceOf<T>,
     ) -> Option<NFTId> {
         if let Some(class) = Self::class(class_id.clone()) {
@@ -348,7 +281,7 @@ impl<T: Config> Module<T> {
             let id = blake2_256(&encoded);
             let new_nft_id = NFTId { id };
 
-            let new_nft = TokenInfo {
+            let new_nft = NFTInfo {
                 metadata: metadata.clone(),
                 owner: miner.clone(),
                 data: data.clone(),
@@ -362,7 +295,7 @@ impl<T: Config> Module<T> {
             let _err = Self::_add_nft_to_owned_nfts(miner.clone(), new_nft_id.clone());
 
             let mut new_class = class.clone();
-            new_class.total_issuance = class.total_issuance - 1;
+            new_class.supply = class.supply - 1;
             <Class<T>>::insert(class_id.clone(), &new_class);
             return Some(new_nft_id);
         }

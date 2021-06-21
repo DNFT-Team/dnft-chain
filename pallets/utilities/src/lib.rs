@@ -19,22 +19,6 @@ pub struct Did {
 	pub did: [u8; 32],
 }
 
-
-/// NFT
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-pub enum NFTStatus {
-	Normal = 0,
-	Destroyed,
-	InCollection,
-}
-
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-pub enum CollectionStatus {
-	Normal = 0,
-	Destroyed,
-	Decoupled,
-}
-
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct NFTId {
 	pub did: [u8; 32],
@@ -46,8 +30,60 @@ pub struct NFTSId {
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct ClassId {
+	pub did: [u8; 32],
+}
+
+#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct CollectionId {
 	pub did: [u8; 32],
+}
+
+#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct AuctionId {
+	pub did: [u8; 32],
+}
+
+#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct ProposalId {
+	pub did: [u8; 32],
+}
+
+/// NFT Class
+#[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
+pub struct ClassInfo<AccountId, BlockNumber> {
+	pub name: Vec<u8>,
+	pub metadata: Vec<u8>,
+	pub info: Vec<u8>,
+	pub supply: u64,
+    pub issuer: AccountId,
+}
+
+/// NFT
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum NFTStatus {
+	Normal = 0,
+	Destroyed,
+	InCollection,
+}
+
+#[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
+pub struct NFT<AccountId, Balance, NFTSId, NFTStatus> {
+	pub nfts_id: NFTSId,
+	pub nfts_index: u64,
+	pub info: Vec<u8>,
+	pub owner: AccountId,
+    pub price: Balance,
+	pub status: NFTStatus,
+	pub approvers: Vec<AccountId>,
+}
+
+/// Collection
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum CollectionStatus {
+	Normal = 0,
+	Destroyed,
+	Decoupled,
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
@@ -60,20 +96,9 @@ pub struct LifeStage<BlockNumber> {
 pub struct NFTS<AccountId, BlockNumber> {
 	pub name: Vec<u8>,
 	pub symbol: Vec<u8>,
-	pub info: Vec<u8>,
 	pub supply: u64,
 	pub stage: Vec<LifeStage<BlockNumber>>,
 	pub issuer: AccountId,
-}
-
-#[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
-pub struct NFT<AccountId, NFTSId, NFTStatus> {
-	pub nfts_id: NFTSId,
-	pub nfts_index: u64,
-	pub info: Vec<u8>,
-	pub owner: AccountId,
-	pub status: NFTStatus,
-	pub approvers: Vec<AccountId>,
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
@@ -93,6 +118,7 @@ pub struct Collection<AccountId, CollectionStatus, NFTSId> {
 	pub status: CollectionStatus,
 	pub approvers: Vec<AccountId>,
 }
+
 
 pub trait NFTManager<AccountId, BlockNumber> {
 	// NFTS
@@ -332,8 +358,6 @@ pub struct AmmOrder<AccountId> {
     pub token_swap_price: u64,
 }
 
-
-
 #[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct P2POrderMaker<AccountId, Moment> {
     pub tpid: Did,
@@ -347,7 +371,6 @@ pub struct P2POrderMaker<AccountId, Moment> {
     pub locked_volume: u64,
     pub taked_volume: u64,
 }
-
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct OrderQueueInfo {

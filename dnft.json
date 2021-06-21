@@ -1,12 +1,16 @@
 {
+  "Did": "([u8; 32])",
   "NFTId": "([u8; 32])",
-  "NFTSId": "([u8; 32])",
   "ClassId": "([u8; 32])",
+  "CollectionId":"([u8; 32])",
+  "AuctionId":"([u8; 32])",
+  "ProposalId":"([u8; 32])",
   "ClassInfo":{
+    "name": "Vec<u8>",
+    "info": "Vec<u8>",
     "metadata": "Vec<u8>",
-    "total_issuance":"u64",
-    "owner":"AccountId",
-    "data":"Vec<u8>"
+    "total_supply":"u64",
+    "issuer":"AccountId"
   },
   "NFTStatus": {
     "_enum": [
@@ -16,15 +20,59 @@
       "Burned"
     ]
   },
-  "TokenInfo":{
+  "NFTInfo":{
+    "class_id": "ClassId",
+    "index": "u64",
+    "name": "Vec<u8>",
+    "info": "Vec<u8>",
     "metadata": "Vec<u8>",
-    "owner":"AccountId",
-    "data":"Vec<u8>",
-    "price":"Balance",
-    "status":"NFTStatus"
+    "owner": "AccountId",
+    "price": "Balance",
+    "status": "NFTStatus",
+    "approver": "Vec<AccountId>"
   },
-  "Did": "([u8; 32])",
-  "PayId": "u32",
+  "CollectionStatus": {
+    "_enum": [
+      "Normal",
+      "Destroyed",
+      "Decoupled"
+    ]
+  },
+  "LifeStage":{
+    "name":"Vec<u8>",
+    "period": "BlockNumber"
+},
+"NFTS":{
+    "name": "Vec<u8>",
+    "symbol": "Vec<u8>",
+    "info": "Vec<u8>",
+    "supply": "u64",
+    "stage": "Vec<LifeStage>",
+    "issuer": "AccountId"
+},
+
+"NFTSource":{
+    "nfts_id": "NFTSId",
+    "amount": "u64",
+    "nfts_indexs": "Vec<u64>"
+},
+  "Collection":{
+    "name": "Vec<u8>",
+    "symbol": "Vec<u8>",
+    "info": "Vec<u8>",
+    "owner": "AccountId",
+    "price": "Balance",
+    "source":"Vec<NFTSource>",
+    "status": "CollectionStatus",
+    "approvers": "Vec<AccountId>"
+   },
+
+   "Token": {
+    "tid": "Did",
+    "owner": "AccountId",
+    "symbol": "Vec<u8>",
+    "total_supply": "u64"
+  },
   "OrderType": {
     "_enum": [
       "Buy",
@@ -35,23 +83,8 @@
     "_enum": [
       "AMMOrder",
       "Auction",
-      "OrderBook",
-      "P2POrder"
+      "OrderBook"
     ]
-  },
-  "OrderStatus": {
-    "_enum": [
-      "Created",
-      "PartialFilled",
-      "Filled",
-      "Canceled"
-    ]
-  },
-  "Token": {
-    "tid": "Did",
-    "owner": "AccountId",
-    "symbol": "Vec<u8>",
-    "total_supply": "u64"
   },
   "TradePair": {
     "base": "Did",
@@ -62,6 +95,17 @@
     "one_day_highest_price": "u64",
     "one_day_lowest_price": "u64"
   },
+
+  "OrderStatus": {
+    "_enum": [
+      "Created",
+      "PartialFilled",
+      "Filled",
+      "Canceled"
+    ]
+  },
+  
+  
   "LiquidityPool": {
     "tpid": "Did",
     "token0": "Did",
@@ -97,30 +141,7 @@
     "locked_volume": "u64",
     "taked_volume": "u64"
   },
-  "GoodsLine": {
-    "tpid": "Did",
-    "buyer": "AccountId",
-    "seller": "AccountId",
-    "producer": "AccountId",
-    "volume": "u64"
-  },
-  "PayLine": {
-    "tpid": "Did",
-    "sender": "AccountId",
-    "receiver": "AccountId",
-    "total_price": "u64",
-    "paid_price": "u64"
-  },
-  "IOULine": {
-    "goods_line_id": "Did",
-    "buyer_pay_line_id": "Did",
-    "seller_pay_line_id": "Did"
-  },
-  "IOU": {
-    "i": "AccountId",
-    "u": "AccountId",
-    "iou_lines": "Vec<IOULine>"
-  },
+  
   "P2POrderTaker": {
     "pomid": "P2POrderMakerId",
     "taker": "AccountId",
@@ -173,47 +194,11 @@
     "best_bid_price": "FixedU128",
     "best_ask_price": "FixedU128"
   },
-    "CollectionId":"([u8; 32])",
-    "CollectionStatus":{
-        "_enum": ["Normal", "Destroyed", "Decoupled"]
-    },
-    "LifeStage":{
-        "name":"Vec<u8>",
-        "period": "BlockNumber"
-    },
-    "NFTS":{
-        "name": "Vec<u8>",
-        "symbol": "Vec<u8>",
-        "info": "Vec<u8>",
-        "supply": "u64",
-        "stage": "Vec<LifeStage>",
-        "issuer": "AccountId"
-    },
-    "NFT":{
-        "nfts_id": "NFTSId",
-        "nfts_index": "u64",
-        "info": "Vec<u8>",
-        "owner": "AccountId",
-        "price": "Balance",
-        "status": "NFTStatus",
-        "approvers": "Vec<AccountId>"
-    },
-    "NFTSource":{
-        "nfts_id": "NFTSId",
-        "amount": "u64",
-        "nfts_indexs": "Vec<u64>"
-    },
-    "Collection":{
-        "name": "Vec<u8>",
-        "symbol": "Vec<u8>",
-        "info": "Vec<u8>",
-        "owner": "AccountId",
-        "price": "Balance",
-        "source":"Vec<NFTSource>",
-        "status": "CollectionStatus",
-        "approvers": "Vec<AccountId>"
-    },
-    "ProposalId":"([u8; 32])",
+
+    
+   
+    
+
     "Proposal":{
       "owner": "AccountId",
       "name": "Vec<u8>",
