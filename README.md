@@ -16,12 +16,8 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
 ![](./img/module.png)
 
-# 4.MVP
 
-
-![](./img/mvp.png)
-
-# 5.Chain Build&Use
+# 4.Chain Build&Use
 
 ## Getting Started
 
