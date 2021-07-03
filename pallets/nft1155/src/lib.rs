@@ -1,900 +1,665 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use utilities::{
-	Collection, CollectionId, CollectionStatus, LifeStage, NFTId, NFTManager, NFTSId, NFTSource,
-	NFTStatus, NFT, NFTS,
-};
 use codec::Encode;
 use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, ensure,
-	traits::{Get, Randomness},
-	StorageMap, StorageValue,
+    decl_error, decl_event, decl_module, decl_storage, ensure,
+    traits::{Currency, ExistenceRequirement, Get, Randomness},
+    StorageMap, StorageValue,
 };
 use frame_system::ensure_signed;
 use randomness;
 use sp_io::hashing::blake2_256;
 use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
+use utilities::{ClassId, ClassInfo, NFT1155Manager, NFTId, NFTInfo, NFTSource, NFTStatus};
 
 pub trait Config: frame_system::Config {
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+    type Currency: Currency<Self::AccountId>;
 }
 
 decl_event!(
-	pub enum Event<T> where
-		<T as frame_system::Config>::AccountId,
-	{
-		IssueNFTS(AccountId),
+    pub enum Event<T> where
+        <T as frame_system::Config>::AccountId,
+    {
+        CreateClass(AccountId),
 
-		MintNFT(AccountId),
+        MintNFT(AccountId),
 
-		TransferSingleNFT(AccountId),
+        TransferSingleNFT(AccountId),
 
-		TransferBatchNFT(AccountId),
-		ApproveSingleNFT(AccountId),
+        OfferNFT(AccountId),
 
-		ApproveBatchNFT(AccountId),
+        BuyNFT(AccountId),
 
-		DestroySingleNFT(AccountId),
+        BurnNFT(AccountId),
 
-		DestroyBatchNFT(AccountId),
+        TransferBatchNFT(AccountId),
+        ApproveSingleNFT(AccountId),
 
-		CoupledCollection(AccountId),
+        ApproveBatchNFT(AccountId),
 
-		TransferCollection(AccountId),
+        DestroySingleNFT(AccountId),
 
-		ApproveCollection(AccountId),
+        DestroyBatchNFT(AccountId),
 
-		DestroyCollection(AccountId),
+        CoupledCollection(AccountId),
 
-		ApprovalForAll(AccountId, AccountId, bool),
-	}
+        TransferCollection(AccountId),
+
+        ApproveCollection(AccountId),
+
+        DestroyCollection(AccountId),
+
+        ApprovalForAll(AccountId, AccountId, bool),
+    }
 );
 
 decl_error! {
-	pub enum Error for Module<T: Config> {
-		NoPermission,
-		NFTNotExist,
-		NFTSNotExist,
-		NFTSExists,
-		NFTExists,
-		IndexExceedTotalSupply,
-		NotNFTOwner,
-		CanNotApproveToSelf,
-		NotEnoughtNFT,
-		CollectionNotExist,
-		NotCollectionOwner,
-	}
+    pub enum Error for Module<T: Config> {
+        NoPermission,
+        NFTNotExist,
+        NFTSNotExist,
+        NFTSExists,
+        NFTExists,
+        NFTBurned,
+        IndexExceedTotalSupply,
+        NotNFTOwner,
+        CanNotApproveToSelf,
+        NotEnoughtNFT,
+        CollectionNotExist,
+        NotCollectionOwner,
+        AlreadlyApproved,
+        NFTNotForBuy,
+        NFTAlreadyOwned,
+        NFTNotOwned,
+    }
 }
+type BalanceOf<T> =
+    <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 decl_storage! {
-	trait Store for Module<T: Config> as NFT1155 {
+    trait Store for Module<T: Config> as NFT1155 {
 
-		// NFTS
-		pub NFTSs get(fn nftss): map hasher(twox_64_concat) NFTSId => Option<NFTS<T::AccountId, T::BlockNumber>>;
-		pub NFTSsCount get(fn nftss_count): u64;
-		pub NFTSsIndex get(fn nftss_index): map hasher(blake2_128_concat) u64 => NFTSId;
+        // Class
+        pub ClassInfos get(fn class_infos): map hasher(twox_64_concat) ClassId => Option<ClassInfo<T::AccountId>>;
+        pub ClassCount get(fn class_count): u64;
+        pub ClassIndex get(fn class_index): map hasher(blake2_128_concat) u64 => ClassId;
+        pub ClassMintIndex get(fn class_mint_index): map hasher(blake2_128_concat) ClassId => u64;
 
-		// Nonce
-		pub Nonce get(fn nonce): u64;
+        // NFT
+        pub NFTInfos get(fn nft_infos): map hasher(twox_64_concat) NFTId => Option<NFTInfo<T::AccountId, BalanceOf<T>> >;
+        pub NFTsCount get(fn nfts_count): u64;
+        pub NFTsIndex get(fn nfts_index): map hasher(blake2_128_concat) u64 => NFTId;
 
-		// NFT
-		pub NFTs get(fn nfts): map hasher(twox_64_concat) NFTId => Option<NFT<T::AccountId, NFTSId, NFTStatus>>;
-		pub NFTsCount get(fn nfts_count): u64;
-		pub NFTsIndex get(fn nfts_index): map hasher(blake2_128_concat) u64 => NFTId;
-		pub NFTSMemberIndex get(fn nfts_member_index): map hasher(blake2_128_concat) NFTSId => u64;
-		pub MemberNFTSId get(fn member_nfts_id):
-		double_map hasher(blake2_128_concat) NFTSId, hasher(blake2_128_concat) u64 => Option<NFTId>;
+        pub NFTByClassIndex get(fn nft_by_class_index):
+        double_map hasher(blake2_128_concat) ClassId, hasher(blake2_128_concat) u64 => Option<NFTId>;
 
-		// TNonce
-		pub TNonce get(fn tnonce): u64;
+        // CNonce
+        pub CNonce get(fn cnonce): u64;
+        // TNonce
+        pub TNonce get(fn tnonce): u64;
 
-		// Collection
-		pub Collections get(fn collections): map hasher(twox_64_concat) CollectionId => Option<Collection<T::AccountId, CollectionStatus, NFTSId>>;
-		pub CollectionsCount get(fn collections_count): u64;
-		pub CollectionsIndex get(fn collections_index): map hasher(blake2_128_concat) u64 => CollectionId;
+        // owned NFT
+        pub OwnedNFTIds get(fn owned_nft_ids): map hasher(blake2_128_concat) T::AccountId => Vec<NFTId>;
+        pub OwnedNFTSource get(fn owned_nft_source):  map hasher(twox_64_concat) T::AccountId => Vec<NFTSource<ClassId>>;
 
-		// CNonce
-		pub CNonce get(fn cnonce): u64;
-
-		// owned NFT
-		pub OwnedNFTS get(fn owned_nfts):  map hasher(twox_64_concat) T::AccountId => Vec<NFTSource<NFTSId>>;
-
-		pub OwnedCollections get(fn owned_collections):  map hasher(twox_64_concat) T::AccountId => Vec<CollectionId>;
-
-		pub OwnerToApprove get(fn is_approved_for_all): map hasher(twox_64_concat) (T::AccountId, T::AccountId) => bool;
-
-	}
+        //Approvers
+        pub NFTApprovers get(fn nft_approvers): map hasher(twox_64_concat) (T::AccountId, NFTId) => bool;
+        pub OwnerToApprove get(fn is_approved_for_all): map hasher(twox_64_concat) (T::AccountId, T::AccountId) => bool;
+    }
 }
 
 decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
-		type Error = Error<T>;
-		fn deposit_event() = default;
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
+        type Error = Error<T>;
+        fn deposit_event() = default;
 
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
-		pub fn issue_nfts(
-			origin,
-			name: Vec<u8>,
-			symbol: Vec<u8>,
-			info: Vec<u8>,
-			supply: u64,
-			stage: Vec<LifeStage<T::BlockNumber>>,
-		) {
-			let who = ensure_signed(origin)?;
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
+        pub fn create_class(
+            origin,
+            name: Vec<u8>,
+            info: Vec<u8>,
+            total_supply: u64,
+        ) {
+            let who = ensure_signed(origin)?;
 
-			Self::_issue_nfts(name, symbol, info, supply, stage, who.clone())?;
+            Self::_create_class(name, info, total_supply, who.clone())?;
 
-			Self::deposit_event(RawEvent::IssueNFTS(who));
-		}
+            Self::deposit_event(RawEvent::CreateClass(who));
+        }
 
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(5,6)]
-		pub fn mint_nft(
-			origin,
-			nfts_id: NFTSId,
-			info: Vec<u8>,
-		) {
-			let who = ensure_signed(origin)?;
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
+        pub fn mint_nft(
+            origin,
+            class_id: ClassId,
+            info: Vec<u8>,
+            metadata: Vec<u8>,
+            price: BalanceOf<T>,
+        ) {
+            let who = ensure_signed(origin)?;
 
-			Self::_mint_nft(nfts_id.clone(), who.clone(), info.clone());
+            Self::_mint_nft(class_id.clone(), info.clone(), metadata.clone(), price.clone(), who.clone());
 
-			Self::deposit_event(RawEvent::MintNFT(who));
+            Self::deposit_event(RawEvent::MintNFT(who));
 
-		}
+        }
 
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(4,2)]
-		pub fn transfer_single_nft(
-			origin,
-			from: T::AccountId,
-			to: T::AccountId,
-			nft_id: NFTId,
-		) {
-			let who = ensure_signed(origin)?;
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
+        pub fn transfer_nft(
+            origin,
+            from: T::AccountId,
+            to: T::AccountId,
+            nft_id: NFTId,
+        ) {
+            let who = ensure_signed(origin)?;
 
-			Self::_transfer_single_nft(who.clone(), from.clone(), to.clone(), nft_id.clone())?;
+            Self::_transfer_single_nft( from.clone(), to.clone(), nft_id.clone())?;
 
-			Self::deposit_event(RawEvent::TransferSingleNFT(who));
+            Self::deposit_event(RawEvent::TransferSingleNFT(who));
 
-		}
+        }
 
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(1,1)]
-		pub fn approve_single_nft(
-			origin,
-			to: T::AccountId,
-			nft_id: NFTId,
-		) {
-			let who = ensure_signed(origin)?;
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
+         pub fn offer_nft(
+            origin,
+            nft_id: NFTId,
+            new_price: BalanceOf<T>,
+        ) {
+            let who = ensure_signed(origin)?;
 
-			Self::_approve_single_nft(who.clone(), to.clone(), nft_id.clone())?;
+            Self::_offer_nft( who.clone(), nft_id.clone(), new_price.clone())?;
 
-			Self::deposit_event(RawEvent::ApproveSingleNFT(who));
+            Self::deposit_event(RawEvent::OfferNFT(who));
 
-		}
+        }
 
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(1,1)]
-		pub fn destroy_single_nft(
-			origin,
-			nft_id: NFTId,
-		) {
-			let who = ensure_signed(origin)?;
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
+         pub fn buy_nft(
+            origin,
+            nft_id: NFTId,
+        ) {
+            let who = ensure_signed(origin)?;
 
-			Self::_destroy_single_nft(who.clone(), nft_id.clone())?;
+            Self::_buy_nft( who.clone(), nft_id.clone())?;
 
-			Self::deposit_event(RawEvent::DestroySingleNFT(who));
+            Self::deposit_event(RawEvent::BuyNFT(who));
 
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(8,3)]
-		pub fn transfer_batch_nft(
-			origin,
-			from: T::AccountId,
-			to: T::AccountId,
-			nfts_id: NFTSId,
-			amount: u64,
-		) {
-			let who = ensure_signed(origin)?;
-
-			Self::_transfer_batch_nft(who.clone(), from.clone(), to.clone(), nfts_id.clone(), amount.clone())?;
-
-			Self::deposit_event(RawEvent::TransferBatchNFT(who));
-
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(3,1)]
-		pub fn approve_batch_nft(
-			origin,
-			to: T::AccountId,
-			nfts_id: NFTSId,
-			amount: u64,
-		) {
-			let who = ensure_signed(origin)?;
-
-			Self::_approve_batch_nft(who.clone(), to.clone(), nfts_id.clone(), amount.clone())?;
-
-			Self::deposit_event(RawEvent::ApproveBatchNFT(who));
-
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(3,1)]
-		pub fn destroy_batch_nft(
-			origin,
-			nfts_id: NFTSId,
-			amount: u64,
-		) {
-			let who = ensure_signed(origin)?;
-
-			Self::_destroy_batch_nft(who.clone(), nfts_id.clone(), amount.clone())?;
-
-			Self::deposit_event(RawEvent::DestroyBatchNFT(who));
-
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(2,3)]
-		pub fn coupled_collection(
-			origin,
-			name: Vec<u8>,
-			symbol: Vec<u8>,
-			info: Vec<u8>,
-			source: Vec<NFTSource<NFTSId>>,
-		) {
-			let who = ensure_signed(origin)?;
-
-			Self::_coupled_collection(name.clone(), symbol.clone(), who.clone(), info.clone(), source.clone())?;
-
-			Self::deposit_event(RawEvent::CoupledCollection(who));
-
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(4,2)]
-		pub fn transfer_collection(
-			origin,
-			from: T::AccountId,
-			to: T::AccountId,
-			collection_id: CollectionId,
-		) {
-			let who = ensure_signed(origin)?;
-
-			Self::_transfer_collection(who.clone(), from.clone(), to.clone(), collection_id.clone())?;
-
-			Self::deposit_event(RawEvent::TransferCollection(who));
-
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(1,1)]
-		pub fn approve_collection(
-			origin,
-			to: T::AccountId,
-			collection_id: CollectionId,
-		) {
-			let who = ensure_signed(origin)?;
-
-			Self::_approve_collection(who.clone(), to.clone(), collection_id.clone())?;
-
-			Self::deposit_event(RawEvent::ApproveCollection(who));
-
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().reads_writes(1,1)]
-		pub fn destroy_collection(
-			origin,
-			collection_id: CollectionId,
-		) {
-			let who = ensure_signed(origin)?;
-
-			Self::_destroy_collection(who.clone(), collection_id.clone())?;
-
-			Self::deposit_event(RawEvent::DestroyCollection(who));
-
-		}
-
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
-		pub fn set_approval_for_all(
-			origin,
-			to: T::AccountId,
-			approved: bool,
-		) {
-			let sender = ensure_signed(origin)?;
-
-			Self::_set_approval_for_all(sender.clone(), to.clone(), approved)?;
-
-			Self::deposit_event(RawEvent::ApprovalForAll(sender, to, approved));
-		}
+        }
 
 
-	}
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
+        pub fn burn_nft(
+            origin,
+            nft_id: NFTId,
+        ) {
+            let who = ensure_signed(origin)?;
+
+            Self::_burn_nft(who.clone(), nft_id.clone())?;
+
+            Self::deposit_event(RawEvent::BurnNFT(who));
+
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(8,3)]
+        pub fn transfer_batch_nft(
+            origin,
+            to: T::AccountId,
+            class_id: ClassId,
+            amount: u64,
+        ) {
+            let who = ensure_signed(origin)?;
+
+            Self::_transfer_batch_nft(who.clone(), to.clone(), class_id.clone(), amount.clone())?;
+
+            Self::deposit_event(RawEvent::TransferBatchNFT(who));
+
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(3,1)]
+        pub fn approve_batch_nft(
+            origin,
+            to: T::AccountId,
+            class_id: ClassId,
+            amount: u64,
+        ) {
+            let who = ensure_signed(origin)?;
+
+            Self::_approve_batch_nft(who.clone(), to.clone(), class_id.clone(), amount.clone())?;
+
+            Self::deposit_event(RawEvent::ApproveBatchNFT(who));
+
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(3,1)]
+        pub fn destroy_batch_nft(
+            origin,
+            class_id: ClassId,
+            amount: u64,
+        ) {
+            let who = ensure_signed(origin)?;
+
+            Self::_destroy_batch_nft(who.clone(), class_id.clone(), amount.clone())?;
+
+            Self::deposit_event(RawEvent::DestroyBatchNFT(who));
+
+        }
+
+    }
 }
 
-// NFTS
+// Class
 impl<T: Config> Module<T> {
-	fn _issue_nfts(
-		name: Vec<u8>,
-		symbol: Vec<u8>,
-		info: Vec<u8>,
-		supply: u64,
-		stage: Vec<LifeStage<T::BlockNumber>>,
-		issuer: T::AccountId,
-	) -> DispatchResult {
-		let nonce = Self::get_nonce();
-		let random_seed = <randomness::Module<T>>::random_seed();
-		let encoded = (random_seed, issuer.clone(), nonce).encode();
-		let did = blake2_256(&encoded);
-		let new_nfts_id = NFTSId { did };
-		let new_nfts = NFTS {
-			name: name.clone(),
-			symbol: symbol.clone(),
-			info: info.clone(),
-			supply: supply.clone(),
-			stage: stage.clone(),
-			issuer: issuer.clone(),
-		};
+    fn _create_class(
+        name: Vec<u8>,
+        info: Vec<u8>,
+        total_supply: u64,
+        issuer: T::AccountId,
+    ) -> DispatchResult {
+        let nonce = Self::get_cnonce();
+        let random_seed = <randomness::Module<T>>::random_seed();
+        let encoded = (random_seed, issuer.clone(), nonce).encode();
+        let did = blake2_256(&encoded);
+        let new_class_id = ClassId { did };
+        let new_class = ClassInfo {
+            name: name.clone(),
+            info: info.clone(),
+            total_supply: total_supply.clone(),
+            issuer: issuer.clone(),
+        };
 
-		<NFTSs<T>>::insert(new_nfts_id.clone(), &new_nfts);
-		<NFTSsCount>::put(nonce.clone() + 1);
-		<NFTSsIndex>::insert(nonce.clone(), new_nfts_id.clone());
+        <ClassInfos<T>>::insert(new_class_id.clone(), &new_class);
+        <ClassCount>::put(nonce.clone() + 1);
+        <ClassIndex>::insert(nonce.clone(), new_class_id.clone());
+        // Self::_add_class_to_class_list(new_class_id)?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	// nonce
-	fn get_nonce() -> u64 {
-		let nonce = <Nonce>::get();
-		<Nonce>::mutate(|n| *n += 1u64);
-		nonce
-	}
+    // nonce
+    fn get_cnonce() -> u64 {
+        let nonce = <CNonce>::get();
+        <CNonce>::mutate(|n| *n += 1u64);
+        nonce
+    }
 }
 
 // NFT
 impl<T: Config> Module<T> {
-	fn _mint_nft(nfts_id: NFTSId, miner: T::AccountId, info: Vec<u8>) -> Option<NFTId> {
-		if let Some(nfts) = Self::nftss(nfts_id.clone()) {
-			let nfts_index = Self::nfts_member_index(nfts_id.clone()) + 1;
-			if nfts.supply >= nfts_index {
-				let tnonce = Self::get_tnonce();
-				let random_seed = <randomness::Module<T>>::random_seed();
-				let encoded = (random_seed, miner.clone(), tnonce).encode();
-				let did = blake2_256(&encoded);
-				let new_nft_id = NFTId { did };
+    fn _mint_nft(
+        class_id: ClassId,
+        info: Vec<u8>,
+        metadata: Vec<u8>,
+        price: BalanceOf<T>,
+        miner: T::AccountId,
+    ) -> Option<NFTId> {
+        if let Some(class_info) = Self::class_infos(class_id.clone()) {
+            let class_mint_index = Self::class_mint_index(class_id.clone()) + 1;
+            if class_info.total_supply >= class_mint_index {
+                let tnonce = Self::get_tnonce();
+                let random_seed = <randomness::Module<T>>::random_seed();
+                let encoded = (random_seed, miner.clone(), tnonce).encode();
+                let did = blake2_256(&encoded);
+                let new_nft_id = NFTId { did };
 
-				let new_nft = NFT {
-					nfts_id: nfts_id.clone(),
-					nfts_index: nfts_index.clone(),
-					info: info.clone(),
-					owner: miner.clone(),
-					status: NFTStatus::Normal,
-					approvers: Vec::new(),
-				};
+                let new_nft = NFTInfo {
+                    class_id: class_id.clone(),
+                    index: class_mint_index.clone(),
+                    info: info.clone(),
+                    metadata: metadata.clone(),
+                    owner: miner.clone(),
+                    issuer: miner.clone(),
+                    price: price.clone(),
+                    status: NFTStatus::Normal,
+                };
 
-				<NFTs<T>>::insert(new_nft_id.clone(), &new_nft);
-				<NFTsCount>::put(tnonce.clone() + 1);
-				<NFTsIndex>::insert(tnonce.clone(), new_nft_id.clone());
-				<NFTSMemberIndex>::insert(nfts_id.clone(), nfts_index.clone());
-				<MemberNFTSId>::insert(nfts_id.clone(), nfts_index.clone(), new_nft_id.clone());
+                <NFTInfos<T>>::insert(new_nft_id.clone(), &new_nft);
+                <NFTsCount>::put(tnonce.clone() + 1);
+                <NFTsIndex>::insert(tnonce.clone(), new_nft_id.clone());
+                <ClassMintIndex>::insert(class_id.clone(), class_mint_index.clone());
+                <NFTByClassIndex>::insert(
+                    class_id.clone(),
+                    class_mint_index.clone(),
+                    new_nft_id.clone(),
+                );
 
-				Self::_add_nft_to_owned_nfts(miner.clone(), nfts_id.clone(), nfts_index.clone());
-				return Some(new_nft_id);
-			}
-		}
-		None
-	}
+                return Some(new_nft_id);
+            }
+        }
+        None
+    }
 
-	fn _transfer_single_nft(
-		who: T::AccountId,
-		from: T::AccountId,
-		to: T::AccountId,
-		nft_id: NFTId,
-	) -> DispatchResult {
-		let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-		ensure!(nft.owner == from.clone(), Error::<T>::NotNFTOwner);
+    fn _transfer_single_nft(from: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        ensure!(nft.owner == from.clone(), Error::<T>::NotNFTOwner);
+        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
 
-		let is_legal = NFTStatus::Normal == nft.status;
-		let is_owner = who == nft.owner;
-		let is_approved = nft.approvers.contains(&who);
-		let is_approved_for_all = Self::is_approved_for_all((from.clone(), who.clone()));
+        nft.owner = to.clone();
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
+        Self::_remove_nft_from_owned_nftids(from.clone(), nft_id.clone())?;
+        Self::_add_nft_to_owned_nftids(to.clone(), nft_id.clone())?;
 
-		ensure!(
-			is_legal || is_owner || is_approved || is_approved_for_all,
-			Error::<T>::NoPermission
-		);
+        Ok(())
+    }
 
-		nft.owner = to.clone();
-		<NFTs<T>>::insert(nft_id.clone(), &nft);
+    fn _offer_nft(from: T::AccountId, nft_id: NFTId, new_price: BalanceOf<T>) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        ensure!(nft.owner == from.clone(), Error::<T>::NotNFTOwner);
+        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
 
-		Self::_remove_nft_from_owned_nfts(
-			from.clone(),
-			nft.nfts_id.clone(),
-			nft.nfts_index.clone(),
-		)?;
-		Self::_add_nft_to_owned_nfts(to.clone(), nft.nfts_id.clone(), nft.nfts_index.clone());
-		Ok(())
-	}
+        nft.price = new_price.clone();
+        nft.status = NFTStatus::Offered;
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
 
-	fn _approve_single_nft(from: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
-		let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-		ensure!(nft.owner == from.clone(), Error::<T>::NoPermission);
-		nft.approvers.push(to.clone());
-		<NFTs<T>>::insert(nft_id.clone(), &nft);
+        Ok(())
+    }
 
-		Ok(())
-	}
+    fn _buy_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        let from = nft.owner.clone();
+        ensure!(nft.owner != who.clone(), Error::<T>::NoPermission);
+        ensure!(nft.status == NFTStatus::Offered, Error::<T>::NFTNotForBuy);
+        T::Currency::transfer(&who, &nft.owner, nft.price, ExistenceRequirement::KeepAlive)?;
+        nft.status = NFTStatus::Normal;
+        nft.owner = who.clone();
+        Self::_remove_nft_from_owned_nftids(from.clone(), nft_id.clone())?;
+        Self::_add_nft_to_owned_nftids(who.clone(), nft_id.clone())?;
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
 
-	fn _destroy_single_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
-		let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-		ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
-		nft.status = NFTStatus::Destroyed;
-		<NFTs<T>>::insert(nft_id.clone(), &nft);
+        Ok(())
+    }
 
-		Ok(())
-	}
+    fn _burn_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
+        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
+        nft.status = NFTStatus::Burned;
 
-	fn _collection_single_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
-		let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-		ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
-		nft.status = NFTStatus::InCollection;
-		<NFTs<T>>::insert(nft_id.clone(), &nft);
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	fn _transfer_batch_nft(
-		who: T::AccountId,
-		from: T::AccountId,
-		to: T::AccountId,
-		nfts_id: NFTSId,
-		amount: u64,
-	) -> DispatchResult {
-		let owned_nfts = Self::owned_nfts(from.clone());
-		for i in 0..owned_nfts.len() {
-			if owned_nfts[i].nfts_id == nfts_id.clone() {
-				ensure!(
-					owned_nfts[i].amount >= amount.clone(),
-					Error::<T>::NotEnoughtNFT
-				);
-				for j in 0..owned_nfts[i].nfts_indexs.len() {
-					let nft_id =
-						Self::member_nfts_id(nfts_id.clone(), owned_nfts[i].nfts_indexs[j].clone())
-							.ok_or(Error::<T>::NFTNotExist)?;
+    // nonce
+    fn get_tnonce() -> u64 {
+        let nonce = <TNonce>::get();
+        <TNonce>::mutate(|n| *n += 1u64);
+        nonce
+    }
 
-					Self::_transfer_single_nft(who.clone(), from.clone(), to.clone(), nft_id)?;
-				}
-			}
-		}
-		Ok(())
-	}
+    fn _approve_single_nft(from: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        let nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        ensure!(nft.owner == from.clone(), Error::<T>::NoPermission);
+        ensure!(
+            Self::nft_approvers((to.clone(), nft_id.clone())) == false,
+            Error::<T>::AlreadlyApproved
+        );
+        <NFTApprovers<T>>::insert((to.clone(), nft_id.clone()), true);
+        Ok(())
+    }
 
-	fn _approve_batch_nft(
-		who: T::AccountId,
-		to: T::AccountId,
-		nfts_id: NFTSId,
-		amount: u64,
-	) -> DispatchResult {
-		let owned_nfts = Self::owned_nfts(who.clone());
-		for i in 0..owned_nfts.len() {
-			if owned_nfts[i].nfts_id == nfts_id.clone() {
-				ensure!(
-					owned_nfts[i].amount >= amount.clone(),
-					Error::<T>::NotEnoughtNFT
-				);
-				for j in 0..owned_nfts[i].nfts_indexs.len() {
-					let nft_id =
-						Self::member_nfts_id(nfts_id.clone(), owned_nfts[i].nfts_indexs[j].clone())
-							.ok_or(Error::<T>::NFTNotExist)?;
+    fn _transfer_batch_nft(
+        from: T::AccountId,
+        to: T::AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult {
+        let owned_nfts = Self::owned_nft_source(from.clone());
+        for i in 0..owned_nfts.len() {
+            if owned_nfts[i].class_id == class_id.clone() {
+                ensure!(
+                    owned_nfts[i].amount >= amount.clone(),
+                    Error::<T>::NotEnoughtNFT
+                );
+                for j in 0..owned_nfts[i].nfts_indexs.len() {
+                    let nft_id = Self::nft_by_class_index(
+                        class_id.clone(),
+                        owned_nfts[i].nfts_indexs[j].clone(),
+                    )
+                    .ok_or(Error::<T>::NFTNotExist)?;
 
-					Self::_approve_single_nft(who.clone(), to.clone(), nft_id)?;
-				}
-			}
-		}
-		Ok(())
-	}
+                    Self::_transfer_single_nft(from.clone(), to.clone(), nft_id)?;
+                }
+            }
+        }
+        Ok(())
+    }
 
-	fn _destroy_batch_nft(who: T::AccountId, nfts_id: NFTSId, amount: u64) -> DispatchResult {
-		let owned_nfts = Self::owned_nfts(who.clone());
-		for i in 0..owned_nfts.len() {
-			if owned_nfts[i].nfts_id == nfts_id.clone() {
-				ensure!(
-					owned_nfts[i].amount >= amount.clone(),
-					Error::<T>::NotEnoughtNFT
-				);
-				for j in 0..owned_nfts[i].nfts_indexs.len() {
-					let nft_id =
-						Self::member_nfts_id(nfts_id.clone(), owned_nfts[i].nfts_indexs[j].clone())
-							.ok_or(Error::<T>::NFTNotExist)?;
+    fn _approve_batch_nft(
+        who: T::AccountId,
+        to: T::AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult {
+        let owned_nfts = Self::owned_nft_source(who.clone());
+        for i in 0..owned_nfts.len() {
+            if owned_nfts[i].class_id == class_id.clone() {
+                ensure!(
+                    owned_nfts[i].amount >= amount.clone(),
+                    Error::<T>::NotEnoughtNFT
+                );
+                for j in 0..owned_nfts[i].nfts_indexs.len() {
+                    let nft_id = Self::nft_by_class_index(
+                        class_id.clone(),
+                        owned_nfts[i].nfts_indexs[j].clone(),
+                    )
+                    .ok_or(Error::<T>::NFTNotExist)?;
 
-					Self::_destroy_single_nft(who.clone(), nft_id)?;
-				}
-			}
-		}
-		Ok(())
-	}
+                    Self::_approve_single_nft(who.clone(), to.clone(), nft_id)?;
+                }
+            }
+        }
+        Ok(())
+    }
 
-	fn _collection_batch_nft(who: T::AccountId, nfts_id: NFTSId, amount: u64) -> DispatchResult {
-		let owned_nfts = Self::owned_nfts(who.clone());
-		for i in 0..owned_nfts.len() {
-			if owned_nfts[i].nfts_id == nfts_id.clone() {
-				ensure!(
-					owned_nfts[i].amount >= amount.clone(),
-					Error::<T>::NotEnoughtNFT
-				);
-				for j in 0..owned_nfts[i].nfts_indexs.len() {
-					let nft_id =
-						Self::member_nfts_id(nfts_id.clone(), owned_nfts[i].nfts_indexs[j].clone())
-							.ok_or(Error::<T>::NFTNotExist)?;
+    fn _destroy_batch_nft(who: T::AccountId, class_id: ClassId, amount: u64) -> DispatchResult {
+        let owned_nfts = Self::owned_nft_source(who.clone());
+        for i in 0..owned_nfts.len() {
+            if owned_nfts[i].class_id == class_id.clone() {
+                ensure!(
+                    owned_nfts[i].amount >= amount.clone(),
+                    Error::<T>::NotEnoughtNFT
+                );
+                for j in 0..owned_nfts[i].nfts_indexs.len() {
+                    let nft_id = Self::nft_by_class_index(
+                        class_id.clone(),
+                        owned_nfts[i].nfts_indexs[j].clone(),
+                    )
+                    .ok_or(Error::<T>::NFTNotExist)?;
 
-					Self::_collection_single_nft(who.clone(), nft_id)?;
-				}
-			}
-		}
-		Ok(())
-	}
-
-	fn _add_nft_to_owned_nfts(owner: T::AccountId, nfts_id: NFTSId, nfts_index: u64) {
-		if let Some(_nft_id) = Self::member_nfts_id(nfts_id.clone(), nfts_index.clone()) {
-			let mut owned_nfts = Self::owned_nfts(owner.clone());
-			let mut nfts_exist_flag = false;
-			let mut nft_exist_flag = false;
-			for i in owned_nfts.clone() {
-				if i.nfts_id == nfts_id.clone() {
-					nfts_exist_flag = true;
-					for j in i.nfts_indexs.clone() {
-						if j == nfts_index.clone() {
-							nft_exist_flag = true;
-						}
-					}
-				}
-			}
-			if !nft_exist_flag {
-				if nfts_exist_flag {
-					for i in 0..owned_nfts.len() {
-						if owned_nfts[i].nfts_id == nfts_id.clone() {
-							owned_nfts[i].amount += 1;
-							owned_nfts[i].nfts_indexs.push(nfts_index.clone());
-						}
-					}
-					<OwnedNFTS<T>>::insert(owner, owned_nfts);
-				} else {
-					let new_owned_nfts = NFTSource {
-						nfts_id: nfts_id.clone(),
-						amount: 1,
-						nfts_indexs: vec![nfts_index.clone()],
-					};
-					owned_nfts.push(new_owned_nfts);
-					<OwnedNFTS<T>>::insert(owner, owned_nfts);
-				}
-			}
-		}
-	}
-
-	fn _remove_nft_from_owned_nfts(
-		owner: T::AccountId,
-		nfts_id: NFTSId,
-		nfts_index: u64,
-	) -> DispatchResult {
-		let _nft = Self::member_nfts_id(nfts_id.clone(), nfts_index.clone())
-			.ok_or(Error::<T>::NFTNotExist)?;
-		let mut owned_nfts = Self::owned_nfts(owner.clone());
-		let mut nfts_exist_flag = false;
-		let mut nft_exist_flag = false;
-		for i in owned_nfts.clone() {
-			if i.nfts_id == nfts_id.clone() {
-				nfts_exist_flag = true;
-				for j in i.nfts_indexs.clone() {
-					if j == nfts_index.clone() {
-						nft_exist_flag = true;
-					}
-				}
-			}
-		}
-		ensure!(nfts_exist_flag == true, Error::<T>::NFTNotExist);
-		ensure!(nft_exist_flag == true, Error::<T>::NFTNotExist);
-
-		for i in 0..owned_nfts.len() {
-			if owned_nfts[i].nfts_id == nfts_id.clone() {
-				let mut k = 0;
-				for j in owned_nfts[i].nfts_indexs.clone() {
-					if j == nfts_index.clone() {
-						owned_nfts[i].nfts_indexs.remove(k);
-						owned_nfts[i].amount -= 1;
-						break;
-					}
-					k += 1;
-				}
-			}
-		}
-		<OwnedNFTS<T>>::insert(owner, owned_nfts);
-
-		Ok(())
-	}
-
-	// tnonce
-	fn get_tnonce() -> u64 {
-		let tnonce = <TNonce>::get();
-		<TNonce>::mutate(|n| *n += 1u64);
-		tnonce
-	}
+                    Self::_burn_nft(who.clone(), nft_id)?;
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
-// collection
 impl<T: Config> Module<T> {
-	fn _coupled_collection(
-		name: Vec<u8>,
-		symbol: Vec<u8>,
-		owner: T::AccountId,
-		info: Vec<u8>,
-		source: Vec<NFTSource<NFTSId>>,
-	) -> DispatchResult {
-		for i in 0..source.len() {
-			for j in 0..source[i].nfts_indexs.len() {
-				let nft_id = Self::member_nfts_id(
-					source[i].nfts_id.clone(),
-					source[i].nfts_indexs[j].clone(),
-				)
-				.ok_or(Error::<T>::NFTNotExist)?;
+    pub fn _add_nft_to_owned_nftids(owner: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        ensure!(
+            !Self::owned_nft_ids(owner.clone()).contains(&nft_id),
+            Error::<T>::NFTAlreadyOwned
+        );
 
-				Self::_collection_single_nft(owner.clone(), nft_id)?;
-			}
-		}
-		let cnonce = Self::get_cnonce();
-		let random_seed = <randomness::Module<T>>::random_seed();
-		let encoded = (random_seed, owner.clone(), cnonce).encode();
-		let did = blake2_256(&encoded);
-		let new_collection_id = CollectionId { did };
-		let new_collection = Collection {
-			name: name.clone(),
-			symbol: symbol.clone(),
-			info: info.clone(),
-			owner: owner.clone(),
-			source: source.clone(),
-			status: CollectionStatus::Normal,
-			approvers: Vec::new(),
-		};
+        let mut owned_nfts = Self::owned_nft_ids(owner.clone());
 
-		<Collections<T>>::insert(new_collection_id.clone(), &new_collection);
-		<CollectionsCount>::put(cnonce.clone() + 1);
-		<CollectionsIndex>::insert(cnonce.clone(), new_collection_id.clone());
+        owned_nfts.push(nft_id.clone());
 
-		Self::_add_collection_to_owned_collections(owner.clone(), new_collection_id.clone())?;
+        <OwnedNFTIds<T>>::insert(owner, owned_nfts);
 
-		Ok(())
-	}
+        Ok(())
+    }
+    pub fn _remove_nft_from_owned_nftids(owner: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        ensure!(
+            Self::owned_nft_ids(owner.clone()).contains(&nft_id),
+            Error::<T>::NFTNotOwned
+        );
 
-	fn _decoupled_collection(from: T::AccountId, collection_id: CollectionId) -> DispatchResult {
-		let mut collection =
-			Self::collections(collection_id.clone()).ok_or(Error::<T>::CollectionNotExist)?;
-		ensure!(collection.owner == from.clone(), Error::<T>::NoPermission);
-		collection.status = CollectionStatus::Decoupled;
-		<Collections<T>>::insert(collection_id.clone(), &collection);
+        let mut owned_nfts = Self::owned_nft_ids(owner.clone());
 
-		Ok(())
-	}
+        let mut j = 0;
 
-	fn _transfer_collection(
-		who: T::AccountId,
-		from: T::AccountId,
-		to: T::AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult {
-		let mut collection =
-			Self::collections(collection_id.clone()).ok_or(Error::<T>::CollectionNotExist)?;
-		ensure!(
-			collection.owner == from.clone(),
-			Error::<T>::NotCollectionOwner
-		);
+        for i in &owned_nfts {
+            if *i == nft_id.clone() {
+                owned_nfts.remove(j);
 
-		let is_legal = CollectionStatus::Normal == collection.status;
-		let is_owner = who == collection.owner;
-		let is_approved = collection.approvers.contains(&who);
-		let is_approved_for_all = Self::is_approved_for_all((from.clone(), who.clone()));
+                break;
+            }
 
-		ensure!(
-			is_legal || is_owner || is_approved || is_approved_for_all,
-			Error::<T>::NoPermission
-		);
+            j += 1;
+        }
 
-		collection.owner = to.clone();
-		<Collections<T>>::insert(collection_id.clone(), &collection);
+        <OwnedNFTIds<T>>::insert(owner, owned_nfts);
 
-		Self::_remove_collection_from_owned_collections(from.clone(), collection_id.clone())?;
-		Self::_add_collection_to_owned_collections(to.clone(), collection_id.clone())?;
-		Ok(())
-	}
+        Ok(())
+    }
 
-	fn _approve_collection(
-		from: T::AccountId,
-		to: T::AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult {
-		let mut collection =
-			Self::collections(collection_id.clone()).ok_or(Error::<T>::CollectionNotExist)?;
-		ensure!(collection.owner == from.clone(), Error::<T>::NoPermission);
-		collection.approvers.push(to.clone());
-		<Collections<T>>::insert(collection_id.clone(), &collection);
+    fn _add_nft_to_owned_nft_sources(owner: T::AccountId, class_id: ClassId, nfts_index: u64) {
+        if let Some(_nft_id) = Self::nft_by_class_index(class_id.clone(), nfts_index.clone()) {
+            let mut owned_nfts = Self::owned_nft_source(owner.clone());
+            let mut nfts_exist_flag = false;
+            let mut nft_exist_flag = false;
+            for i in owned_nfts.clone() {
+                if i.class_id == class_id.clone() {
+                    nfts_exist_flag = true;
+                    for j in i.nfts_indexs.clone() {
+                        if j == nfts_index.clone() {
+                            nft_exist_flag = true;
+                        }
+                    }
+                }
+            }
+            if !nft_exist_flag {
+                if nfts_exist_flag {
+                    for i in 0..owned_nfts.len() {
+                        if owned_nfts[i].class_id == class_id.clone() {
+                            owned_nfts[i].amount += 1;
+                            owned_nfts[i].nfts_indexs.push(nfts_index.clone());
+                        }
+                    }
+                    <OwnedNFTSource<T>>::insert(owner, owned_nfts);
+                } else {
+                    let new_owned_nfts = NFTSource {
+                        class_id: class_id.clone(),
+                        amount: 1,
+                        nfts_indexs: vec![nfts_index.clone()],
+                    };
+                    owned_nfts.push(new_owned_nfts);
+                    <OwnedNFTSource<T>>::insert(owner, owned_nfts);
+                }
+            }
+        }
+    }
 
-		Ok(())
-	}
+    fn _remove_nft_from_owned_nft_sources(
+        owner: T::AccountId,
+        class_id: ClassId,
+        nfts_index: u64,
+    ) -> DispatchResult {
+        let _nft = Self::nft_by_class_index(class_id.clone(), nfts_index.clone())
+            .ok_or(Error::<T>::NFTNotExist)?;
+        let mut owned_nfts = Self::owned_nft_source(owner.clone());
+        let mut nfts_exist_flag = false;
+        let mut nft_exist_flag = false;
+        for i in owned_nfts.clone() {
+            if i.class_id == class_id.clone() {
+                nfts_exist_flag = true;
+                for j in i.nfts_indexs.clone() {
+                    if j == nfts_index.clone() {
+                        nft_exist_flag = true;
+                    }
+                }
+            }
+        }
+        ensure!(nfts_exist_flag == true, Error::<T>::NFTNotExist);
+        ensure!(nft_exist_flag == true, Error::<T>::NFTNotExist);
 
-	fn _destroy_collection(from: T::AccountId, collection_id: CollectionId) -> DispatchResult {
-		let mut collection =
-			Self::collections(collection_id.clone()).ok_or(Error::<T>::CollectionNotExist)?;
-		ensure!(collection.owner == from.clone(), Error::<T>::NoPermission);
-		collection.status = CollectionStatus::Destroyed;
-		<Collections<T>>::insert(collection_id.clone(), &collection);
-		// todo
-		// destroy nft
+        for i in 0..owned_nfts.len() {
+            if owned_nfts[i].class_id == class_id.clone() {
+                let mut k = 0;
+                for j in owned_nfts[i].nfts_indexs.clone() {
+                    if j == nfts_index.clone() {
+                        owned_nfts[i].nfts_indexs.remove(k);
+                        owned_nfts[i].amount -= 1;
+                        break;
+                    }
+                    k += 1;
+                }
+            }
+        }
+        <OwnedNFTSource<T>>::insert(owner, owned_nfts);
 
-		Ok(())
-	}
-
-	fn _add_collection_to_owned_collections(
-		owner: T::AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult {
-		let _collection =
-			Self::collections(collection_id.clone()).ok_or(Error::<T>::CollectionNotExist)?;
-		let mut owned_collections = Self::owned_collections(owner.clone());
-		owned_collections.push(collection_id.clone());
-		<OwnedCollections<T>>::insert(owner, owned_collections);
-		Ok(())
-	}
-
-	fn _remove_collection_from_owned_collections(
-		owner: T::AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult {
-		let _collection =
-			Self::collections(collection_id.clone()).ok_or(Error::<T>::CollectionNotExist)?;
-		let mut owned_collections = Self::owned_collections(owner.clone());
-		for i in 0..owned_collections.len() {
-			if owned_collections[i] == collection_id.clone() {
-				owned_collections.remove(i);
-			}
-		}
-		<OwnedCollections<T>>::insert(owner, owned_collections);
-		Ok(())
-	}
-
-	fn _set_approval_for_all(
-		owner: T::AccountId,
-		to: T::AccountId,
-		approved: bool,
-	) -> DispatchResult {
-		ensure!(owner.clone() != to.clone(), Error::<T>::CanNotApproveToSelf);
-		<OwnerToApprove<T>>::insert((&owner, &to), approved);
-		Ok(())
-	}
-
-	// cnonce
-	fn get_cnonce() -> u64 {
-		let cnonce = <CNonce>::get();
-		<CNonce>::mutate(|n| *n += 1u64);
-		cnonce
-	}
+        Ok(())
+    }
 }
 
-impl<T: Config> NFTManager<T::AccountId, T::BlockNumber> for Module<T> {
-	// NFTS
-	fn issue_nfts(
-		name: Vec<u8>,
-		symbol: Vec<u8>,
-		info: Vec<u8>,
-		supply: u64,
-		stage: Vec<LifeStage<T::BlockNumber>>,
-		issuer: T::AccountId,
-	) -> DispatchResult {
-		Self::_issue_nfts(name, symbol, info, supply, stage, issuer)
-	}
+impl<T: Config> NFT1155Manager<T::AccountId, BalanceOf<T>> for Module<T> {
+    // Class
+    fn issue_nft_class(
+        name: Vec<u8>,
+        info: Vec<u8>,
+        total_supply: u64,
+        issuer: T::AccountId,
+    ) -> DispatchResult {
+        Self::_create_class(name, info, total_supply, issuer)
+    }
 
-	fn get_nfts(nfts_id: NFTSId) -> Option<NFTS<T::AccountId, T::BlockNumber>> {
-		Self::nftss(nfts_id)
-	}
+    fn get_class(class_id: ClassId) -> Option<ClassInfo<T::AccountId>> {
+        Self::class_infos(class_id)
+    }
 
-	// NFT
-	// Todo safeTransfer
-	fn mint_nft(nfts_id: NFTSId, miner: T::AccountId, info: Vec<u8>) -> Option<NFTId> {
-		Self::_mint_nft(nfts_id, miner, info)
-	}
+    // NFT
+    fn mint_nft(
+        class_id: ClassId,
+        info: Vec<u8>,
+        metadata: Vec<u8>,
+        price: BalanceOf<T>,
+        miner: T::AccountId,
+    ) -> Option<NFTId> {
+        Self::_mint_nft(class_id, info, metadata, price, miner)
+    }
 
-	fn get_nft(nft_id: NFTId) -> Option<NFT<T::AccountId, NFTSId, NFTStatus>> {
-		Self::nfts(nft_id)
-	}
+    fn get_nft(nft_id: NFTId) -> Option<NFTInfo<T::AccountId, BalanceOf<T>>> {
+        Self::nft_infos(nft_id)
+    }
 
-	fn get_nfts_member_index(nfts_id: NFTSId) -> u64 {
-		Self::nfts_member_index(nfts_id)
-	}
+    fn get_nft_by_index(class_id: ClassId, index: u64) -> Option<NFTId> {
+        Self::nft_by_class_index(class_id, index)
+    }
 
-	fn get_nft_by_index(nfts_id: NFTSId, nfts_index: u64) -> Option<NFTId> {
-		Self::member_nfts_id(nfts_id, nfts_index)
-	}
+    // Todo safeTransfer
+    fn transfer_single_nft(from: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        Self::_transfer_single_nft(from, to, nft_id)
+    }
 
-	fn owned_nfts(account: T::AccountId) -> Vec<NFTSource<NFTSId>> {
-		Self::owned_nfts(account)
-	}
+    fn transfer_batch_nft(
+        from: T::AccountId,
+        to: T::AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult {
+        Self::_transfer_batch_nft(from, to, class_id, amount)
+    }
 
-	fn transfer_single_nft(
-		who: T::AccountId,
-		from: T::AccountId,
-		to: T::AccountId,
-		nft_id: NFTId,
-	) -> DispatchResult {
-		Self::_transfer_single_nft(who, from, to, nft_id)
-	}
+    fn approve_single_nft(who: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        Self::_approve_single_nft(who, to, nft_id)
+    }
 
-	fn transfer_batch_nft(
-		who: T::AccountId,
-		from: T::AccountId,
-		to: T::AccountId,
-		nfts_id: NFTSId,
-		amount: u64,
-	) -> DispatchResult {
-		Self::_transfer_batch_nft(who, from, to, nfts_id, amount)
-	}
+    fn approve_batch_nft(
+        who: T::AccountId,
+        to: T::AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult {
+        Self::_approve_batch_nft(who, to, class_id, amount)
+    }
 
-	fn approve_single_nft(who: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
-		Self::_approve_single_nft(who, to, nft_id)
-	}
+    fn destroy_single_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        Self::_burn_nft(who, nft_id)
+    }
 
-	fn approve_batch_nft(
-		who: T::AccountId,
-		to: T::AccountId,
-		nfts_id: NFTSId,
-		amount: u64,
-	) -> DispatchResult {
-		Self::_approve_batch_nft(who, to, nfts_id, amount)
-	}
-
-	fn destroy_single_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
-		Self::_destroy_single_nft(who, nft_id)
-	}
-
-	fn destroy_batch_nft(who: T::AccountId, nfts_id: NFTSId, amount: u64) -> DispatchResult {
-		Self::_destroy_batch_nft(who, nfts_id, amount)
-	}
-
-	// Collection
-	fn coupled_collection(
-		name: Vec<u8>,
-		symbol: Vec<u8>,
-		owner: T::AccountId,
-		info: Vec<u8>,
-		source: Vec<NFTSource<NFTSId>>,
-	) -> DispatchResult {
-		Self::_coupled_collection(name, symbol, owner, info, source)
-	}
-
-	fn get_collection(
-		collection_id: CollectionId,
-	) -> Option<Collection<T::AccountId, CollectionStatus, NFTSId>> {
-		Self::collections(collection_id)
-	}
-
-	fn owned_collections(account: T::AccountId) -> Vec<CollectionId> {
-		Self::owned_collections(account)
-	}
-
-	fn decoupled_collection(who: T::AccountId, collection_id: CollectionId) -> DispatchResult {
-		Self::_decoupled_collection(who, collection_id)
-	}
-
-	fn transfer_collection(
-		who: T::AccountId,
-		from: T::AccountId,
-		to: T::AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult {
-		Self::_transfer_collection(who, from, to, collection_id)
-	}
-
-	fn destroy_collection(who: T::AccountId, collection_id: CollectionId) -> DispatchResult {
-		Self::_destroy_collection(who, collection_id)
-	}
-
-	fn approve_collection(
-		who: T::AccountId,
-		to: T::AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult {
-		Self::_approve_collection(who, to, collection_id)
-	}
-
-	fn set_approval_for_all(who: T::AccountId, to: T::AccountId, approved: bool) -> DispatchResult {
-		Self::_set_approval_for_all(who, to, approved)
-	}
+    fn destroy_batch_nft(who: T::AccountId, class_id: ClassId, amount: u64) -> DispatchResult {
+        Self::_destroy_batch_nft(who, class_id, amount)
+    }
 }

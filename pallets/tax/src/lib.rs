@@ -11,56 +11,13 @@ use pallet_randomness_collective_flip as randomness;
 use sp_io::hashing::blake2_256;
 use sp_runtime::{DispatchResult, RuntimeDebug};
 use sp_std::prelude::*;
-
-/// Class info
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
-pub struct ClassInfo<AccountId> {
-    /// Class metadata
-    pub metadata: Vec<u8>,
-    /// Total issuance for the class
-    pub total_issuance: u64,
-    /// Class owner
-    pub owner: AccountId,
-    /// Class Properties
-    pub data: Vec<u8>,
-}
-
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-pub enum NFTStatus {
-    Normal = 0,
-    Offered,
-    Collected,
-    Burned,
-}
-
-/// Token info
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
-pub struct TokenInfo<AccountId, Balance> {
-    /// Token metadata
-    pub metadata: Vec<u8>,
-    /// Token owner
-    pub owner: AccountId,
-    /// Token Properties
-    pub data: Vec<u8>,
-    /// Balance Properties
-    pub price: Balance,
-    /// Balance Properties
-    pub status: NFTStatus,
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct NFTId {
-    pub id: [u8; 32],
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct ClassId {
-    pub id: [u8; 32],
-}
-
+use utilities::{NFT1155Manager, NFT2006Manager, NFT721Manager, NFTId};
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     type Currency: Currency<Self::AccountId>;
+    type NFT721: NFT721Manager<Self::AccountId, BalanceOf<Self>>;
+    type NFT1155: NFT1155Manager<Self::AccountId, BalanceOf<Self>>;
+    type NFT2006: NFT2006Manager<Self::AccountId, BalanceOf<Self>>;
 }
 
 decl_event!(
@@ -70,18 +27,6 @@ decl_event!(
         SetDAOAcc(AccountId),
 
         SetDAOTax(AccountId),
-
-        CreateClass(AccountId),
-
-        MintNFT(AccountId),
-
-        TransferNFT(AccountId),
-
-        OfferNFT(AccountId),
-
-        BuyNFT(AccountId),
-
-        BurnNFT(AccountId),
 
         PayNFTTax(AccountId),
 
@@ -104,12 +49,11 @@ decl_error! {
         NFTNotForBuy,
     }
 }
+
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 decl_storage! {
     trait Store for Module<T: Config> as Tax {
-
-        
 
         // Tax
         pub NFTInTax get(fn nft_in_tax): map hasher(blake2_128_concat) T::AccountId => Vec<NFTId>;
@@ -117,9 +61,6 @@ decl_storage! {
         // DNFTDAO
         pub DAOAcc get(fn dao_acc): T::AccountId;
         pub DAOTax get(fn dao_tax): BalanceOf<T>;
-
-
-
     }
 }
 
@@ -127,8 +68,6 @@ decl_module! {
     pub struct Module<T: Config> for enum Call where origin: T::Origin {
         type Error = Error<T>;
         fn deposit_event() = default;
-
-        
 
         #[weight = 10_000]
          pub fn pay_tax(
@@ -189,8 +128,6 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-
-
     fn _pay_nft_tax(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
         // let nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
         let nfts = Self::nft_in_tax(who.clone());
@@ -214,11 +151,9 @@ impl<T: Config> Module<T> {
 
         Ok(())
     }
-
 }
 
 impl<T: Config> Module<T> {
-
     pub fn _remove_nft_from_nft_in_tax(owner: T::AccountId, nft_id: NFTId) -> DispatchResult {
         ensure!(
             Self::nft_in_tax(owner.clone()).contains(&nft_id),

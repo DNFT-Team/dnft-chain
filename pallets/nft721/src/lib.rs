@@ -1,21 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure,
-    traits::{Currency, ExistenceRequirement, Randomness},
+    traits::{Currency, ExistenceRequirement, Get, Randomness},
     StorageMap, StorageValue,
 };
 use frame_system::ensure_signed;
 use pallet_randomness_collective_flip as randomness;
 use sp_io::hashing::blake2_256;
-use sp_runtime::{DispatchResult, RuntimeDebug};
+use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
-use utilities::{
-	ClassInfo, NFTInfo, NFTStatus, NFTId, ClassId
-};
-
-
+use utilities::{ClassId, ClassInfo, NFT721Manager, NFTId, NFTInfo, NFTStatus};
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     type Currency: Currency<Self::AccountId>;
@@ -25,9 +21,6 @@ decl_event!(
     pub enum Event<T> where
         <T as frame_system::Config>::AccountId,
     {
-        SetDAOAcc(AccountId),
-
-        SetDAOTax(AccountId),
 
         CreateClass(AccountId),
 
@@ -40,10 +33,6 @@ decl_event!(
         BuyNFT(AccountId),
 
         BurnNFT(AccountId),
-
-        PayNFTTax(AccountId),
-
-        PayTotalNFTTax(AccountId),
     }
 );
 
@@ -62,24 +51,25 @@ decl_error! {
         NFTNotForBuy,
     }
 }
+
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 decl_storage! {
     trait Store for Module<T: Config> as NFT721 {
 
         // Class
-        pub Class get(fn class): map hasher(twox_64_concat) ClassId => Option<ClassInfo<T::AccountId>>;
+        pub ClassInfos get(fn class_infos): map hasher(twox_64_concat) ClassId => Option<ClassInfo<T::AccountId>>;
         pub ClassCount get(fn class_count): u64;
         pub ClassIndex get(fn class_index): map hasher(blake2_128_concat) u64 => ClassId;
-        pub ClassList get(fn class_list):  Vec<ClassId>;
-
+        pub ClassMintIndex get(fn class_mint_index): map hasher(blake2_128_concat) ClassId => u64;
 
         // NFT
-        pub NFTs get(fn nfts): map hasher(twox_64_concat) NFTId => Option<NFTInfo<T::AccountId, BalanceOf<T>> >;
+        pub NFTInfos get(fn nft_infos): map hasher(twox_64_concat) NFTId => Option<NFTInfo<T::AccountId, BalanceOf<T>> >;
         pub NFTsCount get(fn nfts_count): u64;
         pub NFTsIndex get(fn nfts_index): map hasher(blake2_128_concat) u64 => NFTId;
         pub OwnedNFTs get(fn owned_nfts): map hasher(blake2_128_concat) T::AccountId => Vec<NFTId>;
-        pub NFTHolders get(fn nft_holders):  Vec<T::AccountId>;
+        pub NFTByClassIndex get(fn nft_by_class_index):
+        double_map hasher(blake2_128_concat) ClassId, hasher(blake2_128_concat) u64 => Option<NFTId>;
 
         // CNonce
         pub CNonce get(fn cnonce): u64;
@@ -94,38 +84,37 @@ decl_module! {
         type Error = Error<T>;
         fn deposit_event() = default;
 
-        #[weight = 10_000 ]
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
         pub fn create_class(
             origin,
             name: Vec<u8>,
             info: Vec<u8>,
-            metadata: Vec<u8>,
             total_supply: u64,
         ) {
             let who = ensure_signed(origin)?;
 
-            Self::_create_class(name, info, metadata, total_supply, who.clone())?;
+            Self::_create_class(name, info, total_supply, who.clone())?;
 
             Self::deposit_event(RawEvent::CreateClass(who));
         }
 
-        #[weight = 10_000]
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
         pub fn mint_nft(
             origin,
             class_id: ClassId,
+            info: Vec<u8>,
             metadata: Vec<u8>,
-            data: Vec<u8>,
             price: BalanceOf<T>,
         ) {
             let who = ensure_signed(origin)?;
 
-            Self::_mint_nft(class_id.clone(), who.clone(), metadata.clone(), data.clone(), price.clone());
+            Self::_mint_nft(class_id.clone(), info.clone(), metadata.clone(), price.clone(), who.clone());
 
             Self::deposit_event(RawEvent::MintNFT(who));
 
         }
 
-        #[weight = 10_000 ]
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
         pub fn transfer_nft(
             origin,
             from: T::AccountId,
@@ -140,7 +129,7 @@ decl_module! {
 
         }
 
-        #[weight = 10_000]
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
          pub fn offer_nft(
             origin,
             nft_id: NFTId,
@@ -154,7 +143,7 @@ decl_module! {
 
         }
 
-        #[weight = 10_000]
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
          pub fn buy_nft(
             origin,
             nft_id: NFTId,
@@ -168,7 +157,7 @@ decl_module! {
         }
 
 
-        #[weight = 10_000 ]
+        #[weight = 10_000 + T::DbWeight::get().reads_writes(1,4)]
         pub fn burn_nft(
             origin,
             nft_id: NFTId,
@@ -181,198 +170,34 @@ decl_module! {
 
         }
 
-        #[weight = 10_000]
-         pub fn pay_tax(
-            origin,
-            nft_id: NFTId,
-        ) {
-            let who = ensure_signed(origin)?;
-
-            Self::_pay_nft_tax( who.clone(), nft_id.clone())?;
-
-            Self::deposit_event(RawEvent::PayNFTTax(who));
-
-        }
-
-        #[weight = 10_000]
-         pub fn pay_total_tax(
-            origin,
-        ) {
-            let who = ensure_signed(origin)?;
-
-            Self::_pay_total_tax(who.clone())?;
-
-            Self::deposit_event(RawEvent::PayTotalNFTTax(who));
-
-        }
-    //     fn on_initialize(block_number: T::BlockNumber) -> Weight {
-    //         let number: T::BlockNumber = <<T as frame_system::Trait>::BlockNumber as From<_>>::from(100);
-
-    //         if block_number % number == <<T as frame_system::Config>::BlockNumber as From<_>>::from(0){
-    //             for acc in Self::nft_holders() {
-    //                 let mut nids = Self::owned_nfts(acc.clone());
-    //                 for i in 0..nids.len() {
-    //                     if let Some(mut nft) = Self::nfts(nids[i].clone()){
-    //                         nft.status = NFTStatus::Collected;
-    //                         <NFTs<T>>::insert(nids[i].clone(), &nft);
-    //                     }
-    //                     nids.remove(i);
-    //                 }
-    //                 <NFTInTax<T>>::insert(&acc, nids);
-    //             }
-    //             return 100_000
-    //         }
-    //         1000
-    //     }
-    //       fn on_finalize(block_number: T::BlockNumber) {
-    //         let number: T::BlockNumber = <<T as frame_system::Trait>::BlockNumber as From<_>>::from(110);
-
-    //         if block_number % number == <<T as frame_system::Trait>::BlockNumber as From<_>>::from(0){
-    //             for acc in Self::nft_holders() {
-    //                 <NFTInTax<T>>::insert(&acc, Self::owned_nfts(acc.clone()));
-    //             }
-    //         }
-    //       }
 
     }
 }
 
+// Class
 impl<T: Config> Module<T> {
     fn _create_class(
         name: Vec<u8>,
         info: Vec<u8>,
-        metadata: Vec<u8>,
         total_supply: u64,
         issuer: T::AccountId,
     ) -> DispatchResult {
         let nonce = Self::get_cnonce();
         let random_seed = <randomness::Module<T>>::random_seed();
         let encoded = (random_seed, issuer.clone(), nonce).encode();
-        let id = blake2_256(&encoded);
-        let new_class_id = ClassId { id };
+        let did = blake2_256(&encoded);
+        let new_class_id = ClassId { did };
         let new_class = ClassInfo {
             name: name.clone(),
             info: info.clone(),
-            metadata: metadata.clone(),
             total_supply: total_supply.clone(),
             issuer: issuer.clone(),
         };
 
-        <Class<T>>::insert(new_class_id.clone(), &new_class);
+        <ClassInfos<T>>::insert(new_class_id.clone(), &new_class);
         <ClassCount>::put(nonce.clone() + 1);
         <ClassIndex>::insert(nonce.clone(), new_class_id.clone());
-        Self::_add_class_to_class_list(new_class_id)?;
-
-        Ok(())
-    }
-    fn _mint_nft(
-        class_id: ClassId,
-        index: u64,
-        miner: T::AccountId,
-        name: Vec<u8>,
-        info: Vec<u8>,
-        metadata: Vec<u8>,
-        price: BalanceOf<T>,
-    ) -> Option<NFTId> {
-        if let Some(class) = Self::class(class_id.clone()) {
-            let tnonce = Self::get_tnonce();
-            let random_seed = <randomness::Module<T>>::random_seed();
-            let encoded = (random_seed, miner.clone(), tnonce).encode();
-            let id = blake2_256(&encoded);
-            let new_nft_id = NFTId { id };
-
-            let new_nft = NFTInfo {
-                metadata: metadata.clone(),
-                owner: miner.clone(),
-                data: data.clone(),
-                price: price.clone(),
-                status: NFTStatus::Normal,
-            };
-
-            <NFTs<T>>::insert(new_nft_id.clone(), &new_nft);
-            <NFTsCount>::put(tnonce.clone() + 1);
-            <NFTsIndex>::insert(tnonce.clone(), new_nft_id.clone());
-            let _err = Self::_add_nft_to_owned_nfts(miner.clone(), new_nft_id.clone());
-
-            let mut new_class = class.clone();
-            new_class.supply = class.supply - 1;
-            <Class<T>>::insert(class_id.clone(), &new_class);
-            return Some(new_nft_id);
-        }
-        None
-    }
-
-    fn _transfer_nft(from: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
-        let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-        ensure!(nft.owner == from.clone(), Error::<T>::NotNFTOwner);
-        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
-
-        nft.owner = to.clone();
-        <NFTs<T>>::insert(nft_id.clone(), &nft);
-        Self::_remove_nft_from_owned_nfts(from.clone(), nft_id.clone())?;
-        Self::_add_nft_to_owned_nfts(to.clone(), nft_id.clone())?;
-
-        Ok(())
-    }
-
-    fn _offer_nft(from: T::AccountId, nft_id: NFTId, new_price: BalanceOf<T>) -> DispatchResult {
-        let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-        ensure!(nft.owner == from.clone(), Error::<T>::NotNFTOwner);
-        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
-
-        nft.price = new_price.clone();
-        nft.status = NFTStatus::Offered;
-        <NFTs<T>>::insert(nft_id.clone(), &nft);
-
-        Ok(())
-    }
-
-    fn _buy_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
-        let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-        let from = nft.owner.clone();
-        ensure!(nft.owner != who.clone(), Error::<T>::NoPermission);
-        ensure!(nft.status == NFTStatus::Offered, Error::<T>::NFTNotForBuy);
-        T::Currency::transfer(&who, &nft.owner, nft.price, ExistenceRequirement::KeepAlive)?;
-        nft.status = NFTStatus::Normal;
-        nft.owner = who.clone();
-        Self::_remove_nft_from_owned_nfts(from.clone(), nft_id.clone())?;
-        Self::_add_nft_to_owned_nfts(who.clone(), nft_id.clone())?;
-        <NFTs<T>>::insert(nft_id.clone(), &nft);
-
-        Ok(())
-    }
-
-    fn _burn_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
-        let mut nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-        ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
-        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
-        nft.status = NFTStatus::Burned;
-
-        <NFTs<T>>::insert(nft_id.clone(), &nft);
-
-        Ok(())
-    }
-
-    fn _pay_nft_tax(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
-        let nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
-        let nfts = Self::nft_in_tax(who.clone());
-        let dao = Self::dao_acc();
-        let tax = Self::dao_tax();
-        ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
-        ensure!(nfts.contains(&nft_id) == true, Error::<T>::NoPermission);
-        ensure!(nft.status == NFTStatus::Offered, Error::<T>::NFTNotForBuy);
-        T::Currency::transfer(&who, &dao, tax, ExistenceRequirement::KeepAlive)?;
-
-        Self::_remove_nft_from_nft_in_tax(who, nft_id)?;
-
-        Ok(())
-    }
-
-    fn _pay_total_tax(who: T::AccountId) -> DispatchResult {
-        let nfts = Self::nft_in_tax(who.clone());
-        for i in nfts {
-            Self::_pay_nft_tax(who.clone(), i)?;
-        }
+        // Self::_add_class_to_class_list(new_class_id)?;
 
         Ok(())
     }
@@ -383,6 +208,105 @@ impl<T: Config> Module<T> {
         <CNonce>::mutate(|n| *n += 1u64);
         nonce
     }
+}
+
+// NFT
+impl<T: Config> Module<T> {
+    fn _mint_nft(
+        class_id: ClassId,
+        info: Vec<u8>,
+        metadata: Vec<u8>,
+        price: BalanceOf<T>,
+        miner: T::AccountId,
+    ) -> Option<NFTId> {
+        if let Some(class_info) = Self::class_infos(class_id.clone()) {
+            let class_mint_index = Self::class_mint_index(class_id.clone()) + 1;
+            if class_info.total_supply >= class_mint_index {
+                let tnonce = Self::get_tnonce();
+                let random_seed = <randomness::Module<T>>::random_seed();
+                let encoded = (random_seed, miner.clone(), tnonce).encode();
+                let did = blake2_256(&encoded);
+                let new_nft_id = NFTId { did };
+
+                let new_nft = NFTInfo {
+                    class_id: class_id.clone(),
+                    index: class_mint_index.clone(),
+                    info: info.clone(),
+                    metadata: metadata.clone(),
+                    owner: miner.clone(),
+                    issuer: miner.clone(),
+                    price: price.clone(),
+                    status: NFTStatus::Normal,
+                };
+
+                <NFTInfos<T>>::insert(new_nft_id.clone(), &new_nft);
+                <NFTsCount>::put(tnonce.clone() + 1);
+                <NFTsIndex>::insert(tnonce.clone(), new_nft_id.clone());
+                <ClassMintIndex>::insert(class_id.clone(), class_mint_index.clone());
+                <NFTByClassIndex>::insert(
+                    class_id.clone(),
+                    class_mint_index.clone(),
+                    new_nft_id.clone(),
+                );
+
+                return Some(new_nft_id);
+            }
+        }
+        None
+    }
+
+    fn _transfer_nft(from: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        ensure!(nft.owner == from.clone(), Error::<T>::NotNFTOwner);
+        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
+
+        nft.owner = to.clone();
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
+        Self::_remove_nft_from_owned_nfts(from.clone(), nft_id.clone())?;
+        Self::_add_nft_to_owned_nfts(to.clone(), nft_id.clone())?;
+
+        Ok(())
+    }
+
+    fn _offer_nft(from: T::AccountId, nft_id: NFTId, new_price: BalanceOf<T>) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        ensure!(nft.owner == from.clone(), Error::<T>::NotNFTOwner);
+        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
+
+        nft.price = new_price.clone();
+        nft.status = NFTStatus::Offered;
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
+
+        Ok(())
+    }
+
+    fn _buy_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        let from = nft.owner.clone();
+        ensure!(nft.owner != who.clone(), Error::<T>::NoPermission);
+        ensure!(nft.status == NFTStatus::Offered, Error::<T>::NFTNotForBuy);
+        T::Currency::transfer(&who, &nft.owner, nft.price, ExistenceRequirement::KeepAlive)?;
+        nft.status = NFTStatus::Normal;
+        nft.owner = who.clone();
+        Self::_remove_nft_from_owned_nfts(from.clone(), nft_id.clone())?;
+        Self::_add_nft_to_owned_nfts(who.clone(), nft_id.clone())?;
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
+
+        Ok(())
+    }
+
+    fn _burn_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        let mut nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+        ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
+        ensure!(nft.status != NFTStatus::Burned, Error::<T>::NFTBurned);
+        nft.status = NFTStatus::Burned;
+
+        <NFTInfos<T>>::insert(nft_id.clone(), &nft);
+
+        Ok(())
+    }
+
+    // nonce
     fn get_tnonce() -> u64 {
         let nonce = <TNonce>::get();
         <TNonce>::mutate(|n| *n += 1u64);
@@ -391,20 +315,6 @@ impl<T: Config> Module<T> {
 }
 
 impl<T: Config> Module<T> {
-    pub fn _add_class_to_class_list(class_id: ClassId) -> DispatchResult {
-        ensure!(
-            !Self::class_list().contains(&class_id),
-            Error::<T>::ClassAlreadyOwned
-        );
-
-        let mut class_list = Self::class_list();
-
-        class_list.push(class_id.clone());
-
-        <ClassList>::put(class_list);
-
-        Ok(())
-    }
     pub fn _add_nft_to_owned_nfts(owner: T::AccountId, nft_id: NFTId) -> DispatchResult {
         ensure!(
             !Self::owned_nfts(owner.clone()).contains(&nft_id),
@@ -443,29 +353,44 @@ impl<T: Config> Module<T> {
 
         Ok(())
     }
+}
 
-    pub fn _remove_nft_from_nft_in_tax(owner: T::AccountId, nft_id: NFTId) -> DispatchResult {
-        ensure!(
-            Self::nft_in_tax(owner.clone()).contains(&nft_id),
-            Error::<T>::NFTNotOwned
-        );
+impl<T: Config> NFT721Manager<T::AccountId, BalanceOf<T>> for Module<T> {
+    // Class
+    fn issue_nft_class(
+        name: Vec<u8>,
+        info: Vec<u8>,
+        total_supply: u64,
+        issuer: T::AccountId,
+    ) -> DispatchResult {
+        Self::_create_class(name, info, total_supply, issuer)
+    }
 
-        let mut owned_nfts_in_tax = Self::nft_in_tax(owner.clone());
+    fn get_class(class_id: ClassId) -> Option<ClassInfo<T::AccountId>> {
+        Self::class_infos(class_id)
+    }
 
-        let mut j = 0;
+    // NFT
+    fn mint_nft(
+        class_id: ClassId,
+        info: Vec<u8>,
+        metadata: Vec<u8>,
+        price: BalanceOf<T>,
+        miner: T::AccountId,
+    ) -> Option<NFTId> {
+        Self::_mint_nft(class_id, info, metadata, price, miner)
+    }
 
-        for i in &owned_nfts_in_tax {
-            if *i == nft_id.clone() {
-                owned_nfts_in_tax.remove(j);
+    fn get_nft(nft_id: NFTId) -> Option<NFTInfo<T::AccountId, BalanceOf<T>>> {
+        Self::nft_infos(nft_id)
+    }
 
-                break;
-            }
+    // Todo safeTransfer
+    fn transfer_single_nft(from: T::AccountId, to: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        Self::_transfer_nft(from, to, nft_id)
+    }
 
-            j += 1;
-        }
-
-        <NFTInTax<T>>::insert(owner, owned_nfts_in_tax);
-
-        Ok(())
+    fn destroy_single_nft(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
+        Self::_burn_nft(who, nft_id)
     }
 }

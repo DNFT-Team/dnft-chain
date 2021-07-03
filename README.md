@@ -3,7 +3,7 @@
 ###### New generation cross chain NFT asset protocol for big data + real scenarios， Ready for hacking :rocket:
 
 # 1.Introduce
-DNFT Protocol is a cross chain decentralized NFT asset network based on substance, which is committed to building a new generation of NFT protocol, especially for big data and practical NFT assets
+DNFT Protocol is a cross chain decentralized NFT asset network, which is committed to building a new generation of NFT protocol, especially for big data and practical NFT assets
 It integrates the functions of NFT asset creation, NFT asset decentralized transaction / auction, NFT asset maintenance tax, NFT recovery mechanism, and dnft governance
 Through the chain governance, Oracle, storage mechanism management, recycling mechanism management, and system protocol management development. To maintain the DNFT Dao mechanism
 
@@ -11,13 +11,17 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
 ![](./img/architecture.png)
 
-# 3.MVP
 
-for **2020杭州 SUBSTRATE HACKATHON**
+# 3.Core Module
+
+![](./img/module.png)
+
+# 4.MVP
+
 
 ![](./img/mvp.png)
 
-# 4.Chain Build&Use
+# 5.Chain Build&Use
 
 ## Getting Started
 

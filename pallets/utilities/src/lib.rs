@@ -13,202 +13,341 @@ use codec::{Decode, Encode};
 use sp_core::H256;
 use sp_runtime::{DispatchResult, RuntimeDebug};
 
-
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct Did {
-	pub did: [u8; 32],
+    pub did: [u8; 32],
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct NFTId {
-	pub did: [u8; 32],
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct NFTSId {
-	pub did: [u8; 32],
+    pub did: [u8; 32],
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct ClassId {
-	pub did: [u8; 32],
+    pub did: [u8; 32],
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct CollectionId {
-	pub did: [u8; 32],
+    pub did: [u8; 32],
+}
+
+#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct AIDataId {
+    pub did: [u8; 32],
+}
+
+#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct AIModelId {
+    pub did: [u8; 32],
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct AuctionId {
-	pub did: [u8; 32],
+    pub did: [u8; 32],
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct ProposalId {
-	pub did: [u8; 32],
+    pub did: [u8; 32],
 }
 
 /// NFT Class
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
-pub struct ClassInfo<AccountId, BlockNumber> {
-	pub name: Vec<u8>,
-	pub metadata: Vec<u8>,
-	pub info: Vec<u8>,
-	pub supply: u64,
+pub struct ClassInfo<AccountId> {
+    pub name: Vec<u8>,
+    pub info: Vec<u8>,
+    pub total_supply: u64,
     pub issuer: AccountId,
 }
 
 /// NFT
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 pub enum NFTStatus {
-	Normal = 0,
-	Destroyed,
-	InCollection,
+    Normal = 0,
+    Burned,
+    Offered,
+    InCollection,
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
-pub struct NFT<AccountId, Balance, NFTSId, NFTStatus> {
-	pub nfts_id: NFTSId,
-	pub nfts_index: u64,
-	pub info: Vec<u8>,
-	pub owner: AccountId,
+pub struct NFTInfo<AccountId, Balance> {
+    pub class_id: ClassId,
+    pub index: u64,
+    pub info: Vec<u8>,
+    pub metadata: Vec<u8>,
+    pub owner: AccountId,
+    pub issuer: AccountId,
     pub price: Balance,
-	pub status: NFTStatus,
-	pub approvers: Vec<AccountId>,
+    pub status: NFTStatus,
+}
+
+#[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
+pub struct NFTSource<ClassId> {
+    pub class_id: ClassId,
+    pub amount: u64,
+    pub nfts_indexs: Vec<u64>,
+}
+
+pub trait NFT721Manager<AccountId, Balance> {
+    // Class
+    fn issue_nft_class(
+        name: Vec<u8>,
+        info: Vec<u8>,
+        total_supply: u64,
+        issuer: AccountId,
+    ) -> DispatchResult;
+
+    fn get_class(class_id: ClassId) -> Option<ClassInfo<AccountId>>;
+
+    // NFT
+    fn mint_nft(
+        class_id: ClassId,
+        info: Vec<u8>,
+        metadata: Vec<u8>,
+        price: Balance,
+        miner: AccountId,
+    ) -> Option<NFTId>;
+
+    fn get_nft(nft_id: NFTId) -> Option<NFTInfo<AccountId, Balance>>;
+
+    // Todo safeTransfer
+    fn transfer_single_nft(from: AccountId, to: AccountId, nft_id: NFTId) -> DispatchResult;
+
+    fn destroy_single_nft(who: AccountId, nft_id: NFTId) -> DispatchResult;
+}
+
+pub trait NFT1155Manager<AccountId, Balance> {
+    // nft class
+    fn issue_nft_class(
+        name: Vec<u8>,
+        info: Vec<u8>,
+        supply: u64,
+        issuer: AccountId,
+    ) -> DispatchResult;
+
+    fn get_class(class_id: ClassId) -> Option<ClassInfo<AccountId>>;
+
+    // NFT
+    fn mint_nft(
+        class_id: ClassId,
+        info: Vec<u8>,
+        metadata: Vec<u8>,
+        price: Balance,
+        miner: AccountId,
+    ) -> Option<NFTId>;
+
+    fn get_nft(nft_id: NFTId) -> Option<NFTInfo<AccountId, Balance>>;
+
+    fn get_nft_by_index(class_id: ClassId, index: u64) -> Option<NFTId>;
+
+    // fn owned_nfts(account: AccountId) -> Vec<NFTSource<ClassId>>;
+
+    // Todo safeTransfer
+    fn transfer_single_nft(from: AccountId, to: AccountId, nft_id: NFTId) -> DispatchResult;
+
+    fn transfer_batch_nft(
+        from: AccountId,
+        to: AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult;
+
+    fn approve_single_nft(who: AccountId, to: AccountId, nft_id: NFTId) -> DispatchResult;
+
+    fn approve_batch_nft(
+        who: AccountId,
+        to: AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult;
+
+    fn destroy_single_nft(who: AccountId, nft_id: NFTId) -> DispatchResult;
+
+    fn destroy_batch_nft(who: AccountId, class_id: ClassId, amount: u64) -> DispatchResult;
 }
 
 /// Collection
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 pub enum CollectionStatus {
-	Normal = 0,
-	Destroyed,
-	Decoupled,
-}
-
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct LifeStage<BlockNumber> {
-	pub name: Vec<u8>,
-	pub period: BlockNumber,
+    Normal = 0,
+    Decoupled,
+    Burned,
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
-pub struct NFTS<AccountId, BlockNumber> {
-	pub name: Vec<u8>,
-	pub symbol: Vec<u8>,
-	pub supply: u64,
-	pub stage: Vec<LifeStage<BlockNumber>>,
-	pub issuer: AccountId,
+pub struct Collection<AccountId, Balance, CollectionStatus, ClassId> {
+    pub name: Vec<u8>,
+    pub symbol: Vec<u8>,
+    pub info: Vec<u8>,
+    pub owner: AccountId,
+    pub issuer: AccountId,
+    pub price: Balance,
+    pub source: Vec<NFTSource<ClassId>>,
+    pub status: CollectionStatus,
+}
+
+pub trait NFT2006Manager<AccountId, Balance> {
+    // nft class
+    fn issue_nft_class(
+        name: Vec<u8>,
+        info: Vec<u8>,
+        supply: u64,
+        issuer: AccountId,
+    ) -> DispatchResult;
+
+    fn get_class(class_id: ClassId) -> Option<ClassInfo<AccountId>>;
+
+    // NFT
+    fn mint_nft(
+        class_id: ClassId,
+        info: Vec<u8>,
+        metadata: Vec<u8>,
+        price: Balance,
+        miner: AccountId,
+    ) -> Option<NFTId>;
+
+    fn get_nft(nft_id: NFTId) -> Option<NFTInfo<AccountId, Balance>>;
+
+    fn get_nft_by_index(class_id: ClassId, index: u64) -> Option<NFTId>;
+
+    // fn owned_nfts(account: AccountId) -> Vec<NFTSource<ClassId>>;
+
+    // Todo safeTransfer
+    fn transfer_single_nft(from: AccountId, to: AccountId, nft_id: NFTId) -> DispatchResult;
+
+    fn transfer_batch_nft(
+        from: AccountId,
+        to: AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult;
+
+    fn approve_single_nft(who: AccountId, to: AccountId, nft_id: NFTId) -> DispatchResult;
+
+    fn approve_batch_nft(
+        who: AccountId,
+        to: AccountId,
+        class_id: ClassId,
+        amount: u64,
+    ) -> DispatchResult;
+
+    fn destroy_single_nft(who: AccountId, nft_id: NFTId) -> DispatchResult;
+
+    fn destroy_batch_nft(who: AccountId, class_id: ClassId, amount: u64) -> DispatchResult;
+
+    // Collection
+    fn coupled_collection(
+        name: Vec<u8>,
+        symbol: Vec<u8>,
+        owner: AccountId,
+        info: Vec<u8>,
+        price: Balance,
+        source: Vec<NFTSource<ClassId>>,
+    ) -> DispatchResult;
+
+    fn get_collection(
+        collection_id: CollectionId,
+    ) -> Option<Collection<AccountId, Balance, CollectionStatus, ClassId>>;
+
+    fn owned_collections(account: AccountId) -> Vec<CollectionId>;
+
+    fn decoupled_collection(who: AccountId, collection_id: CollectionId) -> DispatchResult;
+
+    fn transfer_collection(
+        who: AccountId,
+        from: AccountId,
+        to: AccountId,
+        collection_id: CollectionId,
+    ) -> DispatchResult;
+
+    fn destroy_collection(who: AccountId, collection_id: CollectionId) -> DispatchResult;
+
+    fn approve_collection(
+        who: AccountId,
+        to: AccountId,
+        collection_id: CollectionId,
+    ) -> DispatchResult;
+
+    fn set_approval_for_all(who: AccountId, to: AccountId, approved: bool) -> DispatchResult;
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
-pub struct NFTSource<NFTSId> {
-	pub nfts_id: NFTSId,
-	pub amount: u64,
-	pub nfts_indexs: Vec<u64>,
+pub struct AIModelHighlight {
+    pub theme: Vec<u8>,
+    pub info: Vec<u8>,
+    pub score: u64,
+}
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum ModelLanguage {
+    Python = 0,
+    Js,
+    Java,
+    Matlab,
+    Lisp,
+    Prolog,
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
-pub struct Collection<AccountId, CollectionStatus, NFTSId> {
-	pub name: Vec<u8>,
-	pub symbol: Vec<u8>,
-	pub info: Vec<u8>,
-	pub owner: AccountId,
-	pub source: Vec<NFTSource<NFTSId>>,
-	pub status: CollectionStatus,
-	pub approvers: Vec<AccountId>,
+pub struct AIModel<AccountId, Moment> {
+    pub creator: AccountId,
+    pub title: Vec<u8>,
+    pub language: ModelLanguage,
+    pub framwork: Vec<u8>,
+    pub stars: u64,
+    pub timestamp: Moment,
+    pub highlight: Vec<AIModelHighlight>,
+    pub nft_id: Option<NFTId>,
 }
 
-
-pub trait NFTManager<AccountId, BlockNumber> {
-	// NFTS
-	fn issue_nfts(
-		name: Vec<u8>,
-		symbol: Vec<u8>,
-		info: Vec<u8>,
-		supply: u64,
-		stage: Vec<LifeStage<BlockNumber>>,
-		issuer: AccountId,
-	) -> DispatchResult;
-
-	fn get_nfts(nfts_id: NFTSId) -> Option<NFTS<AccountId, BlockNumber>>;
-
-	// NFT
-	fn mint_nft(nfts_id: NFTSId, miner: AccountId, info: Vec<u8>) -> Option<NFTId>;
-
-	fn get_nft(nft_id: NFTId) -> Option<NFT<AccountId, NFTSId, NFTStatus>>;
-
-	fn get_nfts_member_index(nfts_id: NFTSId) -> u64;
-
-	fn get_nft_by_index(nfts_id: NFTSId, nfts_index: u64) -> Option<NFTId>;
-
-	fn owned_nfts(account: AccountId) -> Vec<NFTSource<NFTSId>>;
-
-	// Todo safeTransfer
-	fn transfer_single_nft(
-		who: AccountId,
-		from: AccountId,
-		to: AccountId,
-		nft_id: NFTId,
-	) -> DispatchResult;
-
-	fn transfer_batch_nft(
-		who: AccountId,
-		from: AccountId,
-		to: AccountId,
-		nfts_id: NFTSId,
-		amount: u64,
-	) -> DispatchResult;
-
-	fn approve_single_nft(who: AccountId, to: AccountId, nft_id: NFTId) -> DispatchResult;
-
-	fn approve_batch_nft(
-		who: AccountId,
-		to: AccountId,
-		nfts_id: NFTSId,
-		amount: u64,
-	) -> DispatchResult;
-
-	fn destroy_single_nft(who: AccountId, nft_id: NFTId) -> DispatchResult;
-
-	fn destroy_batch_nft(who: AccountId, nfts_id: NFTSId, amount: u64) -> DispatchResult;
-
-	// Collection
-	fn coupled_collection(
-		name: Vec<u8>,
-		symbol: Vec<u8>,
-		owner: AccountId,
-		info: Vec<u8>,
-		source: Vec<NFTSource<NFTSId>>,
-	) -> DispatchResult;
-
-	fn get_collection(
-		collection_id: CollectionId,
-	) -> Option<Collection<AccountId, CollectionStatus, NFTSId>>;
-
-	fn owned_collections(account: AccountId) -> Vec<CollectionId>;
-
-	fn decoupled_collection(who: AccountId, collection_id: CollectionId) -> DispatchResult;
-
-	fn transfer_collection(
-		who: AccountId,
-		from: AccountId,
-		to: AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult;
-
-	fn destroy_collection(who: AccountId, collection_id: CollectionId) -> DispatchResult;
-
-	fn approve_collection(
-		who: AccountId,
-		to: AccountId,
-		collection_id: CollectionId,
-	) -> DispatchResult;
-
-	fn set_approval_for_all(who: AccountId, to: AccountId, approved: bool) -> DispatchResult;
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum DataIndustry {
+    Business = 0,
+    Internet,
+    Finance,
+    Healthcare,
+    PoliticsAndCulture,
+    ComputerScience,
+    EngineeringAndTransportation,
+    Safety,
+    FashionAndArt,
+    NatureScience,
 }
 
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum DataTechnology {
+    ComputerVision = 0,
+    NaturalLanguageProcessing,
+    Classification,
+    ObjectDetection,
+    SpeechRecognition,
+    MachineLearning,
+    Modeling,
+    RecommendationSystems,
+    DeepLearning,
+    VideoData,
+}
 
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum DataResource {
+    PublicData = 0,
+    MyData,
+    Burned,
+}
+
+#[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
+pub struct AIData<AccountId, Moment> {
+    pub creator: AccountId,
+    pub industry: DataIndustry,
+    pub technology: DataTechnology,
+    pub resource: DataResource,
+    pub stars: u64,
+    pub timestamp: Moment,
+    pub nft_id: Option<NFTId>,
+    pub collection_id: Option<CollectionId>,
+}
 
 pub type BufferIndex = u8;
 
@@ -421,7 +560,3 @@ pub struct Auction<AccountId> {
     pub start: u64,
     pub end: u64,
 }
-
-
-
-

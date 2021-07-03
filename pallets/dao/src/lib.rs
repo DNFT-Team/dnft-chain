@@ -3,20 +3,15 @@
 use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure,
-    traits::{Currency, ExistenceRequirement, Randomness},
-    StorageMap, StorageValue,Parameter,
-};
-use sp_runtime::{
-    traits::{AtLeast32Bit, MaybeSerializeDeserialize, Member, One},
-    DispatchResult,RuntimeDebug
+    traits::{Currency, Randomness},
+    Parameter, StorageMap, StorageValue,
 };
 use frame_system::ensure_signed;
 use pallet_randomness_collective_flip as randomness;
 use sp_io::hashing::blake2_256;
+use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
-use utilities::{
-	Proposal
-};
+use utilities::Proposal;
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct ProposalId {
@@ -25,7 +20,6 @@ pub struct ProposalId {
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     type Currency: Currency<Self::AccountId>;
-    
 }
 
 decl_event!(
@@ -37,7 +31,7 @@ decl_event!(
         SetDAOTax(AccountId),
 
         NewProposal(AccountId),
-        
+
         VoteProposal(AccountId),
     }
 );
@@ -47,6 +41,7 @@ decl_error! {
         NoPermission,
     }
 }
+
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 decl_storage! {
@@ -60,9 +55,9 @@ decl_storage! {
         pub Proposals get(fn proposals): map hasher(blake2_128_concat) ProposalId => Option<Proposal<T::AccountId>>;
         pub ProposalsCount get(fn proposals_count): u64;
         pub ProposalsIndex get(fn proposals_index): map hasher(blake2_128_concat) u64 => ProposalId;
-        
+
         pub MemberProposals get(fn member_proposals):
-		double_map hasher(blake2_128_concat) ProposalId, hasher(blake2_128_concat) T::AccountId => bool;
+        double_map hasher(blake2_128_concat) ProposalId, hasher(blake2_128_concat) T::AccountId => bool;
         pub PNonce get(fn pnonce): u64;
     }
 }
@@ -152,4 +147,3 @@ decl_module! {
 
     }
 }
-
