@@ -25,11 +25,26 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 **3.2 NFT Protocol**
 
 - NFT721, a realization of [ERC721](https://eips.ethereum.org/EIPS/eip-721) 
+
 - NFT1155, a realization of [ERC1155](https://eips.ethereum.org/EIPS/eip-1155) 
+
 - NFT2006, a AI-friendly NFT framework, proposed by [DNFT Team](https://github.com/DNFT-Team)
+
+  **Brief introduction**：
+
+  ​     A memorial to  [deep learning](https://en.wikipedia.org/wiki/Deep_learning) , proposed in 2006, which has brought leaping development to the field of Artificial Intelligence. NFT2006 aims to make an easy adaption to NFT with  data/model in AI field.
+
+  **Features**:
+
   - [x] Aggregate multiple NFT, package into one，called Collection. It will be friendy for packaging multiple personal data into a big set.
+
   - [x] NFT  fragmentation into Token(ERC20), friendy for huge Dataset ownership(especially for public data), which will  friendy support for NFT mining in AMM/orderbook handling.
+
   - [ ] Copyright protection, authorized viewing using ZKP,MPC and other cryptography tricks.(To do)
+
+    **Features**:
+
+  - [ ] Discussion in  [EIP](https://github.com/ethereum/EIPs/)  with NFT2006.
 
 **3.3 SWAP**
 
