@@ -28,7 +28,7 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
 - NFT1155, a realization of [ERC1155](https://eips.ethereum.org/EIPS/eip-1155) 
 
-- NFT2006, a AI-friendly NFT framework, proposed by [DNFT Team](https://github.com/DNFT-Team)
+- NFT2006, an AI-friendly NFT framework, proposed by [DNFT Team](https://github.com/DNFT-Team)
 
   **Brief introduction**：
 
