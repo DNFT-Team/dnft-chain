@@ -42,8 +42,6 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
   - [ ] Copyright protection, authorized viewing using ZKP,MPC and other cryptography tricks.(To do)
 
-    **Features**:
-
   - [ ] Discussion in  [EIP](https://github.com/ethereum/EIPs/)  with NFT2006.
 
 **3.3 SWAP**
