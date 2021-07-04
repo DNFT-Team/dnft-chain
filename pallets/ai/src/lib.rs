@@ -1,15 +1,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure,
-    traits::{Currency, ExistenceRequirement, Get, Randomness, Time},
+    traits::{Currency, Get, Randomness, Time},
     StorageMap, StorageValue,
 };
 use frame_system::ensure_signed;
 use pallet_randomness_collective_flip as randomness;
 use sp_io::hashing::blake2_256;
-use sp_runtime::{DispatchResult, RuntimeDebug};
+use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use utilities::{
     AIData, AIDataId, AIModel, AIModelHighlight, AIModelId, ClassId, CollectionId, DataIndustry,
@@ -105,7 +105,7 @@ decl_module! {
         ) {
             let who = ensure_signed(origin)?;
 
-            let mut ai_data = Self::ai_datas(ai_data_id.clone()).ok_or(Error::<T>::AIDataNotExist)?;
+            let ai_data = Self::ai_datas(ai_data_id.clone()).ok_or(Error::<T>::AIDataNotExist)?;
 
             ensure!(ai_data.creator == who.clone(), Error::<T>::NotAIDataOwner);
 
@@ -129,7 +129,7 @@ decl_module! {
         ) {
             let who = ensure_signed(origin)?;
 
-            let mut ai_data = Self::ai_datas(ai_data_id.clone()).ok_or(Error::<T>::AIDataNotExist)?;
+            let ai_data = Self::ai_datas(ai_data_id.clone()).ok_or(Error::<T>::AIDataNotExist)?;
 
             ensure!(ai_data.creator == who.clone(), Error::<T>::NotAIDataOwner);
 
@@ -174,7 +174,7 @@ decl_module! {
         ) {
             let who = ensure_signed(origin)?;
 
-            let mut ai_model = Self::ai_models(ai_model_id.clone()).ok_or(Error::<T>::AIModelNotExist)?;
+            let ai_model = Self::ai_models(ai_model_id.clone()).ok_or(Error::<T>::AIModelNotExist)?;
 
             ensure!(ai_model.creator == who.clone(), Error::<T>::NotAIModelOwner);
 

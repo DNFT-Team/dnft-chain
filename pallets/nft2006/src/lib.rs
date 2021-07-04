@@ -13,13 +13,14 @@ use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 
 use utilities::{
-    ClassId, ClassInfo, Collection, CollectionId, CollectionStatus, NFT2006Manager, NFTId, NFTInfo,
-    NFTSource, NFTStatus,
+    ClassId, ClassInfo, Collection, CollectionId, CollectionStatus, Did, NFT2006Manager, NFTId,
+    NFTInfo, NFTSource, NFTStatus, TokenManager,
 };
 
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     type Currency: Currency<Self::AccountId>;
+    type Token: TokenManager<Self::AccountId>;
 }
 
 decl_event!(
@@ -57,6 +58,8 @@ decl_event!(
         DestroyCollection(AccountId),
 
         ApprovalForAll(AccountId, AccountId, bool),
+
+        NFTFragmentation(AccountId),
     }
 );
 
@@ -78,6 +81,7 @@ decl_error! {
         NFTNotForBuy,
         NFTAlreadyOwned,
         NFTNotOwned,
+        NFTAlreadyShiftINFragmentation,
     }
 }
 
@@ -109,6 +113,7 @@ decl_storage! {
 
         //Approvers
         pub NFTApprovers get(fn nft_approvers): map hasher(twox_64_concat) (T::AccountId, NFTId) => bool;
+        pub CollectionApprovers get(fn collection_approvers): map hasher(twox_64_concat) (T::AccountId, CollectionId) => bool;
         pub OwnerToApprove get(fn is_approved_for_all): map hasher(twox_64_concat) (T::AccountId, T::AccountId) => bool;
 
         // Collection
@@ -123,6 +128,12 @@ decl_storage! {
         pub OwnedNFTIds get(fn owned_nft_ids): map hasher(blake2_128_concat) T::AccountId => Vec<NFTId>;
         pub OwnedNFTSource get(fn owned_nft_source):  map hasher(twox_64_concat) T::AccountId => Vec<NFTSource<ClassId>>;
         pub OwnedCollections get(fn owned_collections):  map hasher(twox_64_concat) T::AccountId => Vec<CollectionId>;
+
+
+
+        /// NFT2006 fragmentation NFTId --> TokenId
+        pub NFTShiftToken get(fn nft_shift_token): map hasher(blake2_128_concat) NFTId => Option<Did>;
+
 
 
     }
@@ -333,6 +344,30 @@ decl_module! {
             Self::_set_approval_for_all(sender.clone(), to.clone(), approved)?;
 
             Self::deposit_event(RawEvent::ApprovalForAll(sender, to, approved));
+        }
+
+        #[weight = 10_000 + T::DbWeight::get().writes(1)]
+        pub fn nft_fragmentation(
+            origin,
+            nft_id: NFTId,
+            total_supply: u64,
+            symbol: Vec<u8>,
+        ) {
+            let sender = ensure_signed(origin)?;
+
+            let nft = Self::nft_infos(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
+
+            ensure!(nft.owner == sender.clone(), Error::<T>::NotNFTOwner);
+
+            let token_id = T::Token::issue(sender.clone(), total_supply.clone(), symbol.clone());
+
+            let bound_token_id = Self::nft_shift_token(nft_id.clone());
+
+            ensure!(bound_token_id == None, Error::<T>::NFTAlreadyShiftINFragmentation);
+
+            <NFTShiftToken>::insert(&nft_id, &token_id);
+
+            Self::deposit_event(RawEvent::NFTFragmentation(sender));
         }
 
 
@@ -637,13 +672,12 @@ impl<T: Config> Module<T> {
 
         let is_legal = CollectionStatus::Normal == collection.status;
         let is_owner = who == collection.owner;
-        // let is_approved = collection.approvers.contains(&who);
         let is_approved_for_all = Self::is_approved_for_all((from.clone(), who.clone()));
 
-        // ensure!(
-        //     is_legal || is_owner || is_approved || is_approved_for_all,
-        //     Error::<T>::NoPermission
-        // );
+        ensure!(
+            is_legal || is_owner || is_approved_for_all,
+            Error::<T>::NoPermission
+        );
 
         collection.owner = to.clone();
         <Collections<T>>::insert(collection_id.clone(), &collection);
@@ -658,11 +692,10 @@ impl<T: Config> Module<T> {
         to: T::AccountId,
         collection_id: CollectionId,
     ) -> DispatchResult {
-        let mut collection =
+        let collection =
             Self::collections(collection_id.clone()).ok_or(Error::<T>::CollectionNotExist)?;
         ensure!(collection.owner == from.clone(), Error::<T>::NoPermission);
-        // collection.approvers.push(to.clone());
-        <Collections<T>>::insert(collection_id.clone(), &collection);
+        <CollectionApprovers<T>>::insert((to.clone(), collection_id.clone()), true);
 
         Ok(())
     }

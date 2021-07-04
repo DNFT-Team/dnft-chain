@@ -303,6 +303,7 @@ impl pallet_nft1155::Config for Runtime {
 impl pallet_nft2006::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type Token = pallet_token::Module<Runtime>;
 }
 impl pallet_swap_amm::Config for Runtime {
     type Event = Event;
@@ -312,6 +313,11 @@ impl pallet_swap_amm::Config for Runtime {
 }
 impl pallet_swap_auction::Config for Runtime {
     type Event = Event;
+    type Time = Timestamp;
+    type Currency = Balances;
+    type NFT721 = NFT721Module;
+    type NFT1155 = NFT1155Module;
+    type NFT2006 = NFT2006Module;
 }
 impl pallet_swap_orderbook::Config for Runtime {
     type Event = Event;
@@ -326,6 +332,7 @@ impl pallet_tax::Config for Runtime {
     type NFT721 = NFT721Module;
     type NFT1155 = NFT1155Module;
     type NFT2006 = NFT2006Module;
+    type DAO = DAOModule;
 }
 impl pallet_token::Config for Runtime {
     type Event = Event;

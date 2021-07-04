@@ -4,14 +4,14 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure,
     traits::{Currency, Randomness},
-    Parameter, StorageMap, StorageValue,
+    StorageMap, StorageValue,
 };
 use frame_system::ensure_signed;
 use pallet_randomness_collective_flip as randomness;
 use sp_io::hashing::blake2_256;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::{DispatchResult, RuntimeDebug};
 use sp_std::prelude::*;
-use utilities::Proposal;
+use utilities::{DAOManager, Proposal, ProposalStatus, ProposalTheme};
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct ProposalId {
@@ -30,6 +30,8 @@ decl_event!(
 
         SetDAOTax(AccountId),
 
+        UpdateDAOTax(AccountId),
+
         NewProposal(AccountId),
 
         VoteProposal(AccountId),
@@ -39,6 +41,7 @@ decl_event!(
 decl_error! {
     pub enum Error for Module<T: Config> {
         NoPermission,
+        ParamERR,
     }
 }
 
@@ -52,7 +55,7 @@ decl_storage! {
         pub DAOTax get(fn dao_tax): BalanceOf<T>;
 
         // Proposal
-        pub Proposals get(fn proposals): map hasher(blake2_128_concat) ProposalId => Option<Proposal<T::AccountId>>;
+        pub Proposals get(fn proposals): map hasher(blake2_128_concat) ProposalId => Option<Proposal<T::AccountId, BalanceOf<T>>>;
         pub ProposalsCount get(fn proposals_count): u64;
         pub ProposalsIndex get(fn proposals_index): map hasher(blake2_128_concat) u64 => ProposalId;
 
@@ -78,7 +81,7 @@ decl_module! {
             Self::deposit_event(RawEvent::SetDAOAcc(who));
         }
         #[weight = 10_000 ]
-        pub fn set_dao_tax(
+        pub fn init_dao_tax(
             origin,
             price: BalanceOf<T>,
         ) {
@@ -92,8 +95,10 @@ decl_module! {
         #[weight = 10_000]
         fn create_proposal(
             origin,
-            name: Vec<u8>,
-            content: Vec<u8>,
+            theme: ProposalTheme,
+            value_number: Option<u64>,
+            value_string: Option<Vec<u8>>,
+            value_money: Option<BalanceOf<T>>,
             min_to_succeed: u64,
             deadline: u64,
         ) {
@@ -107,12 +112,15 @@ decl_module! {
             let new_proposal_id = ProposalId { id };
             let new_proposal = Proposal {
                 owner: from.clone(),
-                name: name.clone(),
-                content: content.clone(),
+                theme: theme.clone(),
+                value_number: value_number.clone(),
+                value_string: value_string.clone(),
+                value_money: value_money.clone(),
                 min_to_succeed: min_to_succeed.clone(),
                 vote_yes: 0,
                 vote_no: 0,
                 deadline: deadline.clone(),
+                status: ProposalStatus::Created,
             };
 
             <Proposals<T>>::insert(new_proposal_id.clone(), new_proposal.clone());
@@ -137,6 +145,11 @@ decl_module! {
                 }else{
                     proposal.vote_no +=1;
                 }
+                if proposal.vote_yes >= proposal.min_to_succeed{
+                    proposal.status = ProposalStatus::Passed;
+                    Self::_handle_passed_proposal(pid.clone())?;
+
+                }
                 <Proposals<T>>::insert(&pid, &proposal);
             }
             <MemberProposals<T>>::insert(pid.clone(), voter.clone(), true);
@@ -145,5 +158,26 @@ decl_module! {
             ));
         }
 
+    }
+}
+
+// Proposal
+impl<T: Config> Module<T> {
+    fn _handle_passed_proposal(proposals_id: ProposalId) -> DispatchResult {
+        if let Some(proposal) = Self::proposals(proposals_id.clone()) {
+            if proposal.theme == ProposalTheme::ChangeDAOTax {
+                ensure!(proposal.value_money != None, Error::<T>::ParamERR);
+                <DAOTax<T>>::put(proposal.value_money.unwrap());
+            }
+        }
+        Ok(())
+    }
+}
+impl<T: Config> DAOManager<T::AccountId, BalanceOf<T>> for Module<T> {
+    fn get_dao_account() -> T::AccountId {
+        Self::dao_acc()
+    }
+    fn get_dao_tax() -> BalanceOf<T> {
+        Self::dao_tax()
     }
 }

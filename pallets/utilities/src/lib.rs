@@ -34,6 +34,11 @@ pub struct CollectionId {
 }
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct TokenId {
+    pub did: [u8; 32],
+}
+
+#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct AIDataId {
     pub did: [u8; 32],
 }
@@ -272,6 +277,44 @@ pub trait NFT2006Manager<AccountId, Balance> {
 
     fn set_approval_for_all(who: AccountId, to: AccountId, approved: bool) -> DispatchResult;
 }
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum NFTType {
+    NFT721 = 0,
+    NFT1155,
+    NFT2006,
+}
+/// DAO
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum ProposalTheme {
+    ChangeDAOTax = 0,
+    DAOAcc,
+}
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum ProposalStatus {
+    Created = 0,
+    Passed,
+    Failed,
+}
+
+#[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct Proposal<AccountId, Balance> {
+    pub owner: AccountId,
+    pub theme: ProposalTheme,
+    pub value_number: Option<u64>,
+    pub value_string: Option<Vec<u8>>,
+    pub value_money: Option<Balance>,
+    pub min_to_succeed: u64,
+    pub vote_yes: u64,
+    pub vote_no: u64,
+    pub deadline: u64,
+    pub status: ProposalStatus,
+}
+
+pub trait DAOManager<AccountId, Balance> {
+    fn get_dao_account() -> AccountId;
+    fn get_dao_tax() -> Balance;
+}
 
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
 pub struct AIModelHighlight {
@@ -381,7 +424,7 @@ pub struct Token<AccountId> {
 
 pub trait TokenManager<AccountId> {
     // issue
-    fn issue(from: AccountId, total_supply: u64, symbol: Vec<u8>) -> DispatchResult;
+    fn issue(from: AccountId, total_supply: u64, symbol: Vec<u8>) -> Did;
 
     // transfer
     fn transfer(
@@ -542,21 +585,39 @@ pub struct Trade<AccountId> {
     pub quote_amount: u64,
 }
 
-#[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Proposal<AccountId> {
-    pub owner: AccountId,
-    pub name: Vec<u8>,
-    pub content: Vec<u8>,
-    pub min_to_succeed: u64,
-    pub vote_yes: u64,
-    pub vote_no: u64,
-    pub deadline: u64,
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum AuctionType {
+    EighshAuction = 0,
+    DutchAuction,
+    SealedAuction,
+    DoubleAuction,
+    HabergerTaxAuction,
+}
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+pub enum AuctionStatus {
+    Created = 0,
+    Canceled,
+    Confirmed,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Auction<AccountId> {
+pub struct Auction<AccountId, Balance, Moment> {
     pub owner: AccountId,
-    pub name: Vec<u8>,
-    pub start: u64,
-    pub end: u64,
+    pub auction_type: AuctionType,
+    pub nft_type: NFTType,
+    pub nft_id: NFTId,
+    pub base_price: Option<Balance>,
+    pub start_time: Option<Moment>,
+    pub end_time: Option<Moment>,
+    pub status: AuctionStatus,
+}
+
+#[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct BidInfo<AccountId, Balance, Moment> {
+    pub bidder: AccountId,
+    pub price: Balance,
+    pub time: Moment,
+    pub is_legal: bool,
+    pub is_winner: bool,
 }

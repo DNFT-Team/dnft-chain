@@ -1,32 +1,33 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure,
-    traits::{Currency, ExistenceRequirement, Randomness},
-    StorageMap, StorageValue,
+    traits::{Currency, ExistenceRequirement},
+    StorageMap,
 };
 use frame_system::ensure_signed;
-use pallet_randomness_collective_flip as randomness;
-use sp_io::hashing::blake2_256;
-use sp_runtime::{DispatchResult, RuntimeDebug};
+use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
-use utilities::{NFT1155Manager, NFT2006Manager, NFT721Manager, NFTId};
+use utilities::{ClassId, DAOManager, NFT1155Manager, NFT2006Manager, NFT721Manager, NFTId};
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     type Currency: Currency<Self::AccountId>;
     type NFT721: NFT721Manager<Self::AccountId, BalanceOf<Self>>;
     type NFT1155: NFT1155Manager<Self::AccountId, BalanceOf<Self>>;
     type NFT2006: NFT2006Manager<Self::AccountId, BalanceOf<Self>>;
+    type DAO: DAOManager<Self::AccountId, BalanceOf<Self>>;
 }
 
 decl_event!(
     pub enum Event<T> where
         <T as frame_system::Config>::AccountId,
     {
-        SetDAOAcc(AccountId),
 
-        SetDAOTax(AccountId),
+        MintNFT721WithTax(AccountId),
+
+        MintNFT1155WithTax(AccountId),
+
+        MintNFT2006WithTax(AccountId),
 
         PayNFTTax(AccountId),
 
@@ -47,6 +48,7 @@ decl_error! {
         NFTNotOwned,
         ClassAlreadyOwned,
         NFTNotForBuy,
+        NFTMintERR,
     }
 }
 
@@ -58,9 +60,6 @@ decl_storage! {
         // Tax
         pub NFTInTax get(fn nft_in_tax): map hasher(blake2_128_concat) T::AccountId => Vec<NFTId>;
 
-        // DNFTDAO
-        pub DAOAcc get(fn dao_acc): T::AccountId;
-        pub DAOTax get(fn dao_tax): BalanceOf<T>;
     }
 }
 
@@ -68,6 +67,80 @@ decl_module! {
     pub struct Module<T: Config> for enum Call where origin: T::Origin {
         type Error = Error<T>;
         fn deposit_event() = default;
+
+        #[weight = 10_000]
+         pub fn mint_nft721_with_tax(
+            origin,
+            class_id: ClassId,
+            info: Vec<u8>,
+            metadata: Vec<u8>,
+            price: BalanceOf<T>,
+        ) {
+            let who = ensure_signed(origin)?;
+
+            let nft_id = T::NFT721::mint_nft(class_id.clone(), info.clone(), metadata.clone(), price.clone(), who.clone());
+
+            ensure!(nft_id != None, Error::<T>::NFTMintERR);
+
+            let mut nids = Self::nft_in_tax(who.clone());
+
+             nids.push(nft_id.unwrap());
+
+            <NFTInTax<T>>::insert(&who, &nids);
+
+            Self::deposit_event(RawEvent::MintNFT721WithTax(who));
+
+        }
+
+        #[weight = 10_000]
+         pub fn mint_nft1155_with_tax(
+            origin,
+            class_id: ClassId,
+            info: Vec<u8>,
+            metadata: Vec<u8>,
+            price: BalanceOf<T>,
+        ) {
+            let who = ensure_signed(origin)?;
+
+            let nft_id = T::NFT1155::mint_nft(class_id.clone(), info.clone(), metadata.clone(), price.clone(), who.clone());
+
+            ensure!(nft_id != None, Error::<T>::NFTMintERR);
+
+            let mut nids = Self::nft_in_tax(who.clone());
+
+            nids.push(nft_id.unwrap());
+
+            <NFTInTax<T>>::insert(&who, &nids);
+
+            Self::deposit_event(RawEvent::MintNFT721WithTax(who));
+
+        }
+
+
+        #[weight = 10_000]
+         pub fn mint_nft2006_with_tax(
+            origin,
+            class_id: ClassId,
+            info: Vec<u8>,
+            metadata: Vec<u8>,
+            price: BalanceOf<T>,
+        ) {
+            let who = ensure_signed(origin)?;
+
+            let nft_id = T::NFT2006::mint_nft(class_id.clone(), info.clone(), metadata.clone(), price.clone(), who.clone());
+
+            ensure!(nft_id != None, Error::<T>::NFTMintERR);
+
+            let mut nids = Self::nft_in_tax(who.clone());
+
+            nids.push(nft_id.unwrap());
+
+            <NFTInTax<T>>::insert(&who, &nids);
+
+            Self::deposit_event(RawEvent::MintNFT721WithTax(who));
+
+        }
+
 
         #[weight = 10_000]
          pub fn pay_tax(
@@ -131,8 +204,8 @@ impl<T: Config> Module<T> {
     fn _pay_nft_tax(who: T::AccountId, nft_id: NFTId) -> DispatchResult {
         // let nft = Self::nfts(nft_id.clone()).ok_or(Error::<T>::NFTNotExist)?;
         let nfts = Self::nft_in_tax(who.clone());
-        let dao = Self::dao_acc();
-        let tax = Self::dao_tax();
+        let dao = T::DAO::get_dao_account();
+        let tax = T::DAO::get_dao_tax();
         // ensure!(nft.owner == who.clone(), Error::<T>::NoPermission);
         ensure!(nfts.contains(&nft_id) == true, Error::<T>::NoPermission);
         // ensure!(nft.status == NFTStatus::Offered, Error::<T>::NFTNotForBuy);
