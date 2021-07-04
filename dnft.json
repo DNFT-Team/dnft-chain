@@ -4,11 +4,13 @@
   "ClassId": "([u8; 32])",
   "CollectionId":"([u8; 32])",
   "AuctionId":"([u8; 32])",
+  "TokenId":"([u8; 32])",
+  "AIDataId":"([u8; 32])",
+  "AIModelId":"([u8; 32])",
   "ProposalId":"([u8; 32])",
   "ClassInfo":{
     "name": "Vec<u8>",
     "info": "Vec<u8>",
-    "metadata": "Vec<u8>",
     "total_supply":"u64",
     "issuer":"AccountId"
   },
@@ -16,56 +18,152 @@
     "_enum": [
       "Normal",
       "Offered",
-      "Colleted",
+      "InColletion",
       "Burned"
     ]
   },
   "NFTInfo":{
     "class_id": "ClassId",
     "index": "u64",
-    "name": "Vec<u8>",
     "info": "Vec<u8>",
     "metadata": "Vec<u8>",
     "owner": "AccountId",
+    "issuer": "AccountId",
     "price": "Balance",
-    "status": "NFTStatus",
-    "approver": "Vec<AccountId>"
+    "status": "NFTStatus"
   },
+
+  "NFTSource":{
+    "class_id": "ClassId",
+    "amount": "u64",
+    "nfts_indexs": "Vec<u64>"
+  },
+
   "CollectionStatus": {
     "_enum": [
       "Normal",
-      "Destroyed",
+      "Burned",
       "Decoupled"
     ]
   },
-  "LifeStage":{
-    "name":"Vec<u8>",
-    "period": "BlockNumber"
-},
-"NFTS":{
-    "name": "Vec<u8>",
-    "symbol": "Vec<u8>",
-    "info": "Vec<u8>",
-    "supply": "u64",
-    "stage": "Vec<LifeStage>",
-    "issuer": "AccountId"
-},
-
-"NFTSource":{
-    "nfts_id": "NFTSId",
-    "amount": "u64",
-    "nfts_indexs": "Vec<u64>"
-},
   "Collection":{
     "name": "Vec<u8>",
     "symbol": "Vec<u8>",
     "info": "Vec<u8>",
     "owner": "AccountId",
+    "issuer": "AccountId",
     "price": "Balance",
     "source":"Vec<NFTSource>",
-    "status": "CollectionStatus",
-    "approvers": "Vec<AccountId>"
+    "status": "CollectionStatus"
    },
+     "NFTType": {
+    "_enum": [
+      "NFT721",
+      "NFT1155",
+      "NFT2006"
+    ]
+  },
+    "ProposalTheme": {
+    "_enum": [
+      "ChangeDAOTax",
+      "DAOAcc"
+    ]
+  },
+
+  "ProposalStatus": {
+    "_enum": [
+      "Created",
+      "Passed",
+      "Failed"
+    ]
+  },
+  "Proposal": {
+    "owner": "Did",
+    "theme": "AccountId",
+    "value_number": "Option<u64>",
+    "value_string": "Option<Vec<u8>>",
+    "value_money": "Option<Balance>",
+    "min_to_succeed": "u64",
+    "vote_yes": "u64",
+    "vote_no": "u64",
+    "deadline": "u64",
+    "status": "ProposalStatus",
+  },
+
+  "AIModelHighlight": {
+    "theme": "Vec<u8>",
+    "info": "Vec<u8>",
+    "score":  "u64"
+  },
+
+  "ModelLanguage": {
+    "_enum": [
+      "Python",
+      "Js",
+      "Java",
+      "Matlab",
+      "Lisp",
+      "Prolog"
+    ]
+  },
+   "AIModel": {
+    "creator": "Did",
+    "title": "Vec<u8>",
+    "language": "ModelLanguage",
+    "framwork": "Vec<u8>",
+    "stars": "u64",
+    "timestamp": "Moment",
+    "highlight": "Vec<AIModelHighlight>",
+    "nft_id": "Option<NFTId>",
+  },
+
+  "DataIndustry": {
+    "_enum": [
+      "Business",
+      "Internet",
+      "Finance",
+      "Healthcare",
+      "PoliticsAndCulture",
+      "ComputerScience",
+      "EngineeringAndTransportation",
+      "Safety",
+      "FashionAndArt",
+      "NatureScience"
+    ]
+  },
+
+  "DataTechnology": {
+    "_enum": [
+      "ComputerVision",
+      "NaturalLanguageProcessing",
+      "Classification",
+      "ObjectDetection",
+      "SpeechRecognition",
+      "MachineLearning",
+      "Modeling",
+      "RecommendationSystems",
+      "DeepLearning",
+      "VideoData"
+    ]
+  },
+  "DataResource": {
+    "_enum": [
+      "PublicData",
+      "MyData",
+      "Burned"
+    ]
+  },
+  "AIData": {
+    "creator": "Did",
+    "industry": "DataIndustry",
+    "technology": "DataTechnology",
+    "resource": "DataResource",
+    "stars": "u64",
+    "timestamp": "Moment",
+    "nft_id": "Option<NFTId>",
+    "collection_id": "Option<CollectionId>",
+  },
+
 
    "Token": {
     "tid": "Did",
@@ -194,25 +292,38 @@
     "best_bid_price": "FixedU128",
     "best_ask_price": "FixedU128"
   },
-
-    
-   
-    
-
-    "Proposal":{
-      "owner": "AccountId",
-      "name": "Vec<u8>",
-      "content": "Vec<u8>",
-      "min_to_succeed": "u64",
-      "vote_yes": "u64",
-      "vote_no":"u64",
-      "deadline": "u64"
+"AuctionType": {
+    "_enum": [
+      "EighshAuction",
+      "DutchAuction",
+      "SealedAuction",
+      "DoubleAuction",
+      "HabergerTaxAuction"
+    ]
+  },
+  "AuctionStatus": {
+    "_enum": [
+      "Created",
+      "Canceled",
+      "Confirmed"
+    ]
   },
   "Auction":{
     "owner": "AccountId",
-    "name": "Vec<u8>",
-    "start": "u64",
-    "end": "u64"
+    "auction_type": "Vec<u8>",
+    "nft_type": "u64",
+    "nft_id": "u64",
+    "base_price": "Option<Balance>",
+    "start_time": "Option<Moment>",
+    "end_time": "Option<Moment>",
+    "status": "AuctionStatus"
+},
+"BidInfo":{
+    "bidder": "AccountId",
+    "price": "Balance",
+    "time": "Moment",
+    "is_legal": "bool",
+    "is_winner": "bool"
 }
 
 }
