@@ -16,6 +16,46 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
 ![](./img/module.png)
 
+**3.1 DAO**
+
+- DAO Account for NFT collection.
+- DAO Tax for NFT tax , Our team believes NFT with tax will be beneficial to the proliferation of NFT assets.
+- DAO Proposal for NFT tax setting, etc.
+
+**3.2 NFT Protocol**
+
+- NFT721, a realization of [ERC721](https://eips.ethereum.org/EIPS/eip-721) 
+- NFT1155, a realization of [ERC1155](https://eips.ethereum.org/EIPS/eip-1155) 
+- NFT2006, a AI-friendly NFT framework, proposed by [DNFT Team](https://github.com/DNFT-Team)
+  - [x] Aggregate multiple NFT, package into one，called Collection. It will be friendy for packaging multiple personal data into a big set.
+  - [x] NFT  fragmentation into Token(ERC20), friendy for huge Dataset ownership(especially for public data), which will  friendy support for NFT mining in AMM/orderbook handling.
+  - [ ] Copyright protection, authorized viewing using ZKP,MPC and other cryptography tricks.(To do)
+
+**3.3 SWAP**
+
+- Simple Transfer or with a offer(in NFT Protocol)
+- Auction(Simple implementation，will be perfect and optimized in the future )
+  - [x] EnglishAuction(higher price bidder win the auction)
+  - [x] DutchAuction(Price reduction until the winner comes)
+  - [ ] SealedAuction(To do)
+  - [ ] DoubleAuction(To do)
+  - [ ] HabergerTaxAuction(To do)
+- OrderBook(Only support NFT2006)
+- AMM(Only support NFT2006)
+
+**3.4 Usecase**
+
+- AI
+  - [x] AIData
+  - [x] AIModel
+- Game(To do)
+- Art(To do)
+
+
+
+
+
+3.2
 
 # 4.Chain Build&Use
 
