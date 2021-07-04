@@ -67,11 +67,6 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 - Art(To do)
 
 
-
-
-
-3.2
-
 # 4.Chain Build&Use
 
 ## Getting Started
