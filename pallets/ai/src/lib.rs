@@ -33,6 +33,7 @@ decl_event!(
         CreateAIModel(AccountId),
         BoundAIDataWithNFT(AccountId),
         BoundAIDataWithCollection(AccountId),
+		BoundAIModelWithNFT(AccountId),
     }
 );
 
@@ -186,7 +187,7 @@ decl_module! {
 
             Self::_bound_ai_model_nft(ai_model_id, nft_id.unwrap())?;
 
-            Self::deposit_event(RawEvent::BoundAIDataWithNFT(who));
+            Self::deposit_event(RawEvent::BoundAIModelWithNFT(who));
         }
     }
 }
