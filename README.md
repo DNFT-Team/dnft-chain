@@ -36,9 +36,9 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
   **Features**:
 
-  - [x] Aggregate multiple NFT, package into one，called Collection. It will be friendy for packaging multiple personal data into a big set.
+  - [x] Aggregate multiple NFT, package into one，called Collection. It will be friendly for packaging multiple personal data into a big set.
 
-  - [x] NFT  fragmentation into Token(ERC20), friendy for huge Dataset ownership(especially for public data), which will  friendy support for NFT mining in AMM/orderbook handling.
+  - [x] NFT  fragmentation into Token(ERC20), friendy for huge Dataset ownership(especially for public data), which will  friendly support for NFT mining in AMM/orderbook handling.
 
   - [ ] Copyright protection, authorized viewing using ZKP,MPC and other cryptography tricks.(To do)
 
