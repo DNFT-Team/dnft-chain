@@ -377,7 +377,6 @@ pub enum DataTechnology {
 pub enum DataResource {
     PublicData = 0,
     MyData,
-    Burned,
 }
 
 #[derive(Encode, Decode, RuntimeDebug, Eq, PartialEq, Clone)]
@@ -474,7 +473,6 @@ pub enum TradeMethod {
     Auction = 0,
     AMMOrder,
     OrderBook,
-    P2POrder,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
@@ -538,20 +536,6 @@ pub struct AmmOrder<AccountId> {
     pub token_want: Did,
     pub token_want_amount: u64,
     pub token_swap_price: u64,
-}
-
-#[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct P2POrderMaker<AccountId, Moment> {
-    pub tpid: Did,
-    pub maker: AccountId,
-    pub order_type: OrderType,
-    pub volume: u64,
-    pub price: u64,
-    pub status: OrderStatus,
-    pub time: Moment,
-    pub left_volume: u64,
-    pub locked_volume: u64,
-    pub taked_volume: u64,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, RuntimeDebug)]

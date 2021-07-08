@@ -17,9 +17,9 @@
     "NFTStatus":{
         "_enum":[
             "Normal",
+            "Burned",
             "Offered",
-            "InColletion",
-            "Burned"
+            "InColletion"
         ]
     },
     "NFTInfo":{
@@ -40,8 +40,8 @@
     "CollectionStatus":{
         "_enum":[
             "Normal",
-            "Burned",
-            "Decoupled"
+            "Decoupled",
+            "Burned"
         ]
     },
     "Collection":{
@@ -75,8 +75,8 @@
         ]
     },
     "Proposal":{
-        "owner":"Did",
-        "theme":"AccountId",
+        "owner":"AccountId",
+        "theme":"ProposalTheme",
         "value_number":"Option<u64>",
         "value_string":"Option<Vec<u8>>",
         "value_money":"Option<Balance>",
@@ -142,12 +142,11 @@
     "DataResource":{
         "_enum":[
             "PublicData",
-            "MyData",
-            "Burned"
+            "MyData"
         ]
     },
     "AIData":{
-        "creator":"Did",
+        "creator":"AccountId",
         "industry":"DataIndustry",
         "technology":"DataTechnology",
         "resource":"DataResource",
@@ -155,6 +154,11 @@
         "timestamp":"Moment",
         "nft_id":"Option<NFTId>",
         "collection_id":"Option<CollectionId>"
+    },
+    "BufferIndex":"u8",
+    "ValueStruct":{
+        "integer":"u32",
+        "boolean":"bool"
     },
     "Token":{
         "tid":"Did",
@@ -214,69 +218,30 @@
         "token_want_amount":"u64",
         "token_swap_price":"u64"
     },
-    "P2POrderMaker":{
-        "tpid":"Did",
-        "maker":"AccountId",
-        "order_type":"OrderType",
-        "volume":"u64",
-        "price":"u64",
-        "status":"OrderStatus",
-        "time":"Moment",
-        "left_volume":"u64",
-        "locked_volume":"u64",
-        "taked_volume":"u64"
-    },
-    "P2POrderTaker":{
-        "pomid":"P2POrderMakerId",
-        "taker":"AccountId",
-        "volume":"u64",
-        "iou":"Option<IOU>",
-        "is_paid":"bool",
-        "is_valid":"bool",
-        "time":"Moment"
-    },
-    "ValueStruct":{
-        "integer":"u32",
-        "boolean":"bool"
-    },
-    "BufferIndex":"u8",
-    "OrderPara":{
+    "OrderQueueInfo":{
+        "oindex": "u32",
+        "price": "u32",
         "time":"u32",
-        "volume":"u32",
-        "oindex":"u32"
+        "volume":"u32"
     },
-    "OrderType1":{
-        "_enum":[
-            "BidLimit",
-            "BidMarket",
-            "AskLimit",
-            "AskMarket"
-        ]
+    "LimitOrder":{
+        "tpid":"Did",
+        "owner":"AccountId",
+        "price":"u64",
+        "amount":"u64",
+        "created_time":"Moment",
+        "remained_amount":"u64",
+        "otype":"OrderType",
+        "status":"OrderStatus"
     },
-    "Order":{
-        "id":"Hash",
-        "trading_pair":"Hash",
-        "trader":"AccountId",
-        "price":"FixedU128",
-        "quantity":"FixedU128",
-        "order_type":"OrderType1"
-    },
-    "MarketData":{
-        "low":"FixedU128",
-        "high":"FixedU128",
-        "volume":"FixedU128"
-    },
-    "LinkedPriceLevel":{
-        "next":"Option<FixedU128>",
-        "prev":"Option<FixedU128>",
-        "orders":"Vec<Order>"
-    },
-    "Orderbook":{
-        "trading_pair":"Hash",
-        "base_asset_id":"u32",
-        "quote_asset_id":"u32",
-        "best_bid_price":"FixedU128",
-        "best_ask_price":"FixedU128"
+    "Trade":{
+        "tpid":"Did",
+        "buyer":"AccountId",
+        "seller":"AccountId",
+        "price":"u64",
+        "otype":"OrderType",
+        "base_amount":"u64",
+        "quote_amount":"u64"
     },
     "AuctionType":{
         "_enum":[
