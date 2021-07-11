@@ -12,6 +12,13 @@ use sp_io::hashing::blake2_256;
 use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use utilities::{ClassId, ClassInfo, NFT721Manager, NFTId, NFTInfo, NFTStatus};
+
+// #[cfg(test)]
+// mod mock;
+
+// #[cfg(test)]
+// mod tests;
+
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
     type Currency: Currency<Self::AccountId>;
@@ -248,6 +255,7 @@ impl<T: Config> Module<T> {
                     class_mint_index.clone(),
                     new_nft_id.clone(),
                 );
+                let _ = Self::_add_nft_to_owned_nfts(miner.clone(), new_nft_id.clone());
 
                 return Some(new_nft_id);
             }
