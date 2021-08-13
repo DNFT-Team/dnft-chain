@@ -97,6 +97,10 @@ curl https://sh.rustup.rs -sSf | sh
 cargo build --release
 ```
 
+**[Build Error Handle Refer](https://github.com/DNFT-Team/dnft-substrate-node/tree/master/doc/Build Error & Handle.md)**
+
+
+
 ###### 4.2Run
 
 **Purge any existing developer chain state:**
@@ -110,6 +114,14 @@ cargo build --release
 ```
 ./target/release/dnft --dev
 ```
+
+**Start a development chain support  outer ip call with:**
+
+```
+./target/release/dnft --dev --ws-external
+```
+
+
 
 ###### 4.3Run in Docker
 
