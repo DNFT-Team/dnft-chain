@@ -4,7 +4,7 @@
 
 # 1.Introduce
 
-[Substrate](https://github.com/substrate-developer-hub/substrate-node-template) Version for [DNFT Protocol](http://dnft.world/).
+[Substrate](https://github.com/substrate-developer-hub/substrate-node-template) Version for [DNFT Protocol](https://dnft.gitbook.io/dnft/).
 
 
 
