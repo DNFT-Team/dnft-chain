@@ -4,25 +4,21 @@
 
 # 1.Introduce
 
-DNFT Protocol is a cross chain decentralized NFT asset network, which is committed to building a new generation of NFT protocol, especially for big data and practical NFT assets
-It integrates the functions of NFT asset creation, NFT asset decentralized transaction / auction, NFT asset maintenance tax, NFT recovery mechanism, and dnft governance
-Through the chain governance, Oracle, storage mechanism management, recycling mechanism management, and system protocol management development. To maintain the DNFT Dao mechanism
+[Substrate](https://github.com/substrate-developer-hub/substrate-node-template) Version for [DNFT Protocol](http://dnft.world/).
 
-# 2.Architecture
 
-![](./img/architecture.png)
 
-# 3.Core Module
+# 2.Core Substrate Module
 
 ![](./img/module.png)
 
-**3.1 DAO**
+**2.1 DAO**
 
 - DAO Account for NFT collection.
 - DAO Tax for NFT tax , Our team believes NFT with tax will be beneficial to the proliferation of NFT assets.
 - DAO Proposal for NFT tax setting, etc.
 
-**3.2 NFT Protocol**
+**2.2 NFT Protocol**
 
 - NFT721, a realization of [ERC721](https://eips.ethereum.org/EIPS/eip-721)
 
@@ -52,7 +48,7 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
   
 
-  **3.3 SWAP**
+  **2.3 SWAP**
 
 - Simple Transfer or with a offer(in NFT Protocol)
 
@@ -67,7 +63,7 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 
 - AMM(Only support NFT2006)
 
-**3.4 Usecase**
+**2.4 Usecase**
 
 - AI
   - [x] AIData
@@ -75,9 +71,23 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
 - Game(To do)
 - Art(To do)
 
-# 4.Build&Run
+**2.5 EVM-Support**
 
-###### 4.1Build
+- [ ] EVM-Support
+
+**2.6 Cross-Chain**
+
+- [ ] XCMP-Support for Substrate-based Cross Chain
+- [ ] Relay Mechanism for Heterogeneous blockchains  Cross Chain (eg. ETH/BSC/Heco)
+- [ ] NFT  Cross Chain Mechanism
+
+
+
+
+
+# 3.Build&Run
+
+###### 3.1Build
 
 **Install Rust:**
 
@@ -97,11 +107,11 @@ curl https://sh.rustup.rs -sSf | sh
 cargo build --release
 ```
 
-**[Build Error Handle Refer](https://github.com/DNFT-Team/dnft-substrate-node/tree/master/doc/Build Error & Handle.md)**
+**[Build Error Handle Refer](https://github.com/DNFT-Team/dnft-substrate-node/blob/master/doc/Build%20Error%20%26%20Handle.md)**
 
 
 
-###### 4.2Run
+###### 3.2Run
 
 **Purge any existing developer chain state:**
 
@@ -123,7 +133,7 @@ cargo build --release
 
 
 
-###### 4.3Run in Docker
+###### 3.3Run in Docker
 
 First, install [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
