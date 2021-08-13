@@ -45,18 +45,26 @@ Through the chain governance, Oracle, storage mechanism management, recycling me
   - [ ] Discussion in [EIP](https://github.com/ethereum/EIPs/) with NFT2006.
 
   **Detail**：
-  [erc2006-doc](https://dnft.gitbook.io/dnft/erc-nft-2006-standard)
-  [erc2006-solidity](https://github.com/DNFT-Team/ERC2006)
+
+  1)DOC [erc2006-doc](https://dnft.gitbook.io/dnft/erc-nft-2006-standard)
+
+  2)ERC2006-solidity version[erc2006-solidity](https://github.com/DNFT-Team/ERC2006)
+
+  
+
   **3.3 SWAP**
 
 - Simple Transfer or with a offer(in NFT Protocol)
+
 - Auction(Simple implementation，will be perfect and optimized in the future )
   - [x] EnglishAuction(higher price bidder win the auction)
   - [x] DutchAuction(Price reduction until the winner comes)
   - [ ] SealedAuction(To do)
   - [ ] DoubleAuction(To do)
   - [ ] HabergerTaxAuction(To do)
+  
 - OrderBook(Only support NFT2006)
+
 - AMM(Only support NFT2006)
 
 **3.4 Usecase**
