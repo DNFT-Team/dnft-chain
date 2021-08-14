@@ -8,7 +8,7 @@
 
 
 
-# 2.Overview for DNFT Protocol
+# 2.Overview of DNFT Protocol
 
 ![](./img/architecture.png)
 
