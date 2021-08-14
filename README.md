@@ -12,7 +12,7 @@
 
 ![](./img/architecture.png)
 
-# 3.Core Substrate Module for DNFT Chain 
+# 3.Core Module of DNFT Substrate Chain 
 
 ![](./img/module.png)
 
