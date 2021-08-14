@@ -8,17 +8,21 @@
 
 
 
-# 2.Core Substrate Module
+# 2.Overview for DNFT Protocol
+
+![](./img/architecture.png)
+
+# 3.Core Substrate Module for DNFT Chain 
 
 ![](./img/module.png)
 
-**2.1 DAO**
+**3.1 DAO**
 
 - DAO Account for NFT collection.
 - DAO Tax for NFT tax , Our team believes NFT with tax will be beneficial to the proliferation of NFT assets.
 - DAO Proposal for NFT tax setting, etc.
 
-**2.2 NFT Protocol**
+**3.2 NFT Protocol**
 
 - NFT721, a realization of [ERC721](https://eips.ethereum.org/EIPS/eip-721)
 
@@ -46,24 +50,19 @@
 
   2)ERC2006-solidity version[erc2006-solidity](https://github.com/DNFT-Team/ERC2006)
 
-  
-
-  **2.3 SWAP**
+**3.3 NFT Protocol**
 
 - Simple Transfer or with a offer(in NFT Protocol)
-
 - Auction(Simple implementation，will be perfect and optimized in the future )
   - [x] EnglishAuction(higher price bidder win the auction)
   - [x] DutchAuction(Price reduction until the winner comes)
   - [ ] SealedAuction(To do)
   - [ ] DoubleAuction(To do)
   - [ ] HabergerTaxAuction(To do)
-  
 - OrderBook(Only support NFT2006)
-
 - AMM(Only support NFT2006)
 
-**2.4 Usecase**
+**3.4 Usecase**
 
 - AI
   - [x] AIData
@@ -71,11 +70,11 @@
 - Game(To do)
 - Art(To do)
 
-**2.5 EVM-Support**
+**3.5 EVM-Support**
 
 - [ ] EVM-Support
 
-**2.6 Cross-Chain**
+**3.6 Cross-Chain**
 
 - [ ] XCMP-Support for Substrate-based Cross Chain
 - [ ] Relay Mechanism for Heterogeneous blockchains  Cross Chain (eg. ETH/BSC/Heco)
@@ -85,9 +84,9 @@
 
 
 
-# 3.Build&Run
+# 4.Build&Run
 
-###### 3.1Build
+###### 4.1Build
 
 **Install Rust:**
 
@@ -111,7 +110,7 @@ cargo build --release
 
 
 
-###### 3.2Run
+###### 4.2Run
 
 **Purge any existing developer chain state:**
 
@@ -133,7 +132,7 @@ cargo build --release
 
 
 
-###### 3.3Run in Docker
+###### 4.3Run in Docker
 
 First, install [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
