@@ -6,13 +6,11 @@
 
 [Substrate](https://github.com/substrate-developer-hub/substrate-node-template) Version for [DNFT Protocol](https://dnft.gitbook.io/dnft/).
 
-
-
 # 2.Overview of DNFT Protocol
 
 ![](./img/architecture.png)
 
-# 3.Core Module of DNFT Substrate Chain 
+# 3.Core Module of DNFT Substrate Chain
 
 ![](./img/module.png)
 
@@ -32,7 +30,7 @@
 
   **Brief introduction**：
 
-   A memorial to [deep learning](https://en.wikipedia.org/wiki/Deep_learning) , proposed in 2006, which has brought leaping development to the field of Artificial Intelligence. NFT2006 aims to make an easy adaption to NFT with data/model in AI field.
+  A memorial to [deep learning](https://en.wikipedia.org/wiki/Deep_learning) , proposed in 2006, which has brought leaping development to the field of Artificial Intelligence. NFT2006 aims to make an easy adaption to NFT with data/model in AI field.
 
   **Features**:
 
@@ -77,12 +75,8 @@
 **3.6 Cross-Chain**
 
 - [ ] XCMP-Support for Substrate-based Cross Chain
-- [ ] Relay Mechanism for Heterogeneous blockchains  Cross Chain (eg. ETH/BSC/Heco)
-- [ ] NFT  Cross Chain Mechanism
-
-
-
-
+- [ ] Relay Mechanism for Heterogeneous blockchains Cross Chain (eg. ETH/BSC/Heco)
+- [ ] NFT Cross Chain Mechanism
 
 # 4.Build&Run
 
@@ -108,9 +102,13 @@ cargo build --release
 
 **[Build Error Handle Refer](https://github.com/DNFT-Team/dnft-substrate-node/blob/master/doc/Build%20Error%20%26%20Handle.md)**
 
+###### 4.2Test
 
+```
+cargo test
+```
 
-###### 4.2Run
+###### 4.3Run
 
 **Purge any existing developer chain state:**
 
@@ -124,15 +122,13 @@ cargo build --release
 ./target/release/dnft --dev
 ```
 
-**Start a development chain support  outer ip call with:**
+**Start a development chain support outer ip call with:**
 
 ```
 ./target/release/dnft --dev --ws-external
 ```
 
-
-
-###### 4.3Run in Docker
+###### 4.4Run in Docker
 
 First, install [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
